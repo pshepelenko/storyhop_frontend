@@ -28,6 +28,7 @@ const NewStoryPage = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin' : 'http://storyhop.eu-north-1.elasticbeanstalk.com/'
                 },
                 body: JSON.stringify({
                     userId: userId, 
