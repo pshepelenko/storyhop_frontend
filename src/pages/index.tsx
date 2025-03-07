@@ -3,6 +3,7 @@ import Image from "next/image";
 import Header from "../components/header";
 import Logo from "../components/logo";
 import StoriesListUnit from "../components/stories-list-unit";
+import Link from 'next/link';
 
 export default function Home() {
   interface Story {
@@ -42,9 +43,9 @@ export default function Home() {
       <main className="flex flex-col gap-8 row-start-2 items-center">
         <Header />
         <Logo />
-        <a href="/new" className="bg-blue-500 hover:bg-blue-700 text-lg text-white py-4 px-4 mt-4 rounded-full"> 
+        <Link href="/new" className="bg-blue-500 hover:bg-blue-700 text-lg text-white py-4 px-4 mt-4 rounded-full"> 
           + Начать историю
-        </a>
+        </Link>
         <div className="bg-gray-100 w-full">
           <div>
             <h1 className="text-lg w-full text-center text-bold mt-4">Твои истории</h1>          

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import AudioElement from '../../components/audio-element';
 import Spinner from '../../components/spinner';
+import Link from 'next/link';
 
 const StoryPage = () => {
     const router = useRouter();
@@ -99,12 +100,12 @@ const StoryPage = () => {
     return (
         <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 font-[family-name:var(--font-geist-sans)]">
             <header className="flex w-full justify-between items-center">
-                <a href="/" className="flex text-blue-500 items-center">
+                <Link href="/" className="flex text-blue-500 items-center">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M8.7069 4.23276C8.99256 3.93281 9.46729 3.92123 9.76724 4.2069C10.0672 4.49256 10.0788 4.9673 9.7931 5.26724L6 9.25H15.75C16.1642 9.25 16.5 9.58579 16.5 10C16.5 10.4142 16.1642 10.75 15.75 10.75H6L9.7931 14.7328C10.0788 15.0327 10.0672 15.5074 9.76724 15.7931C9.46729 16.0788 8.99256 16.0672 8.7069 15.7672L3.7069 10.5172C3.43103 10.2276 3.43103 9.77242 3.7069 9.48276L8.7069 4.23276Z" fill="#3B82F6"/>
                     </svg>
                     Back
-                </a>
+                </Link>
                 <div className="text-md text-semibold text-center px-2">
                     {story.title}                   
                 </div>
