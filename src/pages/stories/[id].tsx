@@ -7,7 +7,29 @@ import Link from 'next/link';
 const StoryPage = () => {
     const router = useRouter();
     const { id } = router.query;
-    const [story, setStory] = useState<any>(null);
+    const [story, setStory] = useState<{
+        storyId: string;
+        userId: string;
+        threadId: string;
+        world: string;
+        age: string;
+        comments: string;
+        lastQuestion: string;
+        title: string;
+        coverURL: string;
+        audioURLs: string[];
+    }>({
+        storyId: '',
+        userId: '',
+        threadId: '',
+        world: '',
+        age: '',
+        comments: '',
+        lastQuestion: '',
+        title: '',
+        coverURL: '',
+        audioURLs: [],
+    });
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [customOption, setCustomOption] = useState<string>('');
     const [error, setError] = useState<string | null>(null);

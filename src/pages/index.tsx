@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Image from "next/image";
 import Header from "../components/header";
 import Logo from "../components/logo";
 import StoriesListUnit from "../components/stories-list-unit";
