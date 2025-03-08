@@ -58,7 +58,7 @@ const NewStoryPage = () => {
     };
 
     return (
-        <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 font-[family-name:var(--font-geist-sans)]">
+        <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 bg-white text-black font-[family-name:var(--font-geist-sans)]">
             <header className="flex w-full items-center">
                 <Link href="/" className="flex text-blue-500 items-center">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
