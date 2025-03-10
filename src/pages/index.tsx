@@ -16,7 +16,7 @@ export default function Home() {
   useEffect(() => {
     const fetchStories = async () => {
       try {
-        let userId = localStorage.getItem('userId') || 'default';
+        const userId = localStorage.getItem('userId') || 'default';
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}`, {
           method: 'GET',
           headers: {
