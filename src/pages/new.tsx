@@ -21,8 +21,8 @@ const NewStoryPage = () => {
 
         try {
             let userId = localStorage.getItem('userId');
-            if (!userId) {
-                userId = ''; 
+            if (!userId || userId === 'undefined') {
+                userId = 'default'; 
             }
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/start`, {
                 method: 'POST',
@@ -31,7 +31,7 @@ const NewStoryPage = () => {
                     'Access-Control-Allow-Origin' : 'http://storyhop.eu-north-1.elasticbeanstalk.com/'
                 },
                 body: JSON.stringify({
-                    userId: userId, 
+                    channelUserId: userId, 
                     theme: world,
                     channel: 'web-app',
                     age: authorAge,

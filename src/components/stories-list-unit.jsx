@@ -4,9 +4,8 @@ export default function StoriesListUnit({ story }) {
     return (
         <div className="flex h-48 justify-start bg-white mx-2 mb-4 my-2 rounded-lg px-2 py-2">
             <img src={story.coverURL} className="w-1/2 mr-2"/>
-            <div className="w-full y-full">
-                <h3 className="font-bold flex"> {story.title}</h3>
-                <p className="py-2 text-sm">Last updated: 02-24-2025</p>
+            <div className="w-full y-full flex justify-around flex-col">
+                <h3 className="font-bold "> {story.title}</h3>
                 <Link href={"/stories/" + story.storyId} className="text-blue-500 text-sm py-1 border border-2 p-2 rounded-lg border-blue-500 flex">
                     Открыть
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">

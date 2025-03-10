@@ -16,7 +16,8 @@ export default function Home() {
   useEffect(() => {
     const fetchStories = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/58873b02-8f46-4fd8-af7e-01e300c5f13e`, {
+        let userId = localStorage.getItem('userId') || 'default';
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -49,9 +50,15 @@ export default function Home() {
           <div>
             <h1 className="text-lg w-full text-center text-bold mt-4">Твои истории</h1>          
           </div>
-          {stories.map((story) => (
-            <StoriesListUnit key={story.storyId} story={story} />
-          ))}
+          {stories.length === 0 ? (
+            <div className="text-center text-gray-500 mt-4">
+              Ты еще пока не создал ни одной истории. Попробуйте начать новую.
+            </div>
+          ) : (
+            stories.map((story) => (
+              <StoriesListUnit key={story.storyId} story={story} />
+            ))
+          )}
         </div>
       </main>
       <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
