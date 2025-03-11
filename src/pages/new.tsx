@@ -51,7 +51,7 @@ const NewStoryPage = () => {
             router.push(`/stories/${data.storyId}`);
         } catch (error) {
             console.error('Error creating story:', error);
-            setError('Ошибка при создании истории. Пожалуйста, попробуйте снова.');
+            setError('Ошибка при создании истории.' + error);
         } finally {
             setLoading(false);
         }

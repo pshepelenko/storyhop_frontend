@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black`}>
+    <div className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black flex items-center justify-center min-h-screen`}>
       {children}
     </div>
   );
