@@ -1,6 +1,12 @@
 import Link from 'next/link';
 
-export default function StoriesListUnit({ story }) {
+interface Story {
+    coverURL: string;
+    title: string;
+    storyId: string;
+}
+
+export default function StoriesListUnit({ story }: { story: Story }) {
     return (
         <div className="flex h-48 justify-start bg-white mx-2 mb-4 my-2 rounded-lg px-2 py-2">
             <img src={story.coverURL} className="w-1/2 mr-2"/>

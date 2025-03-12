@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import AudioElement from '../../components/audio-element';
 import Spinner from '../../components/spinner';
+import SharePopup from '../../components/share-popup';
 import Link from 'next/link';
 
 const StoryPage = () => {
@@ -35,7 +36,8 @@ const StoryPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [shouldHideOptions, setShouldHideOptions] = useState<boolean>(false);
-    
+    const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
+    const [storyLink, setStoryLink] = useState<string>('');
 
     useEffect(() => {
         const fetchStory = async () => {
@@ -59,13 +61,22 @@ const StoryPage = () => {
                 }
             }
         };
-        if (story.lastQuestion == undefined)
-            setShouldHideOptions(true)
-        else {
-            setShouldHideOptions(story.lastQuestion.includes('-z-'));
-        }
         fetchStory();
     }, [id]);
+
+    useEffect(() => {
+        if (story.lastQuestion === undefined || story.lastQuestion === '') {
+            setShouldHideOptions(true);
+        } else {
+            setShouldHideOptions(story.lastQuestion.includes('-z-'));
+        }
+    }, [story]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setStoryLink(`${window.location.origin}/stories/${story.storyId}`);
+        }
+    }, [story.storyId]);
 
     const handleOptionClick = (option: string) => {
         setSelectedOption(option);
@@ -135,9 +146,6 @@ const StoryPage = () => {
     if (!story) {
         return <div>Loading...</div>;
     }
-    
-    
-        
 
     return (
         <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 font-[family-name:var(--font-geist-sans)]">
@@ -152,7 +160,7 @@ const StoryPage = () => {
                     <div id="title-desktop" className="hidden sm:block text-md text-semibold text-center font-bold px-2">
                         {story.title}                   
                     </div>
-                    <button className="flex text-blue-500 items-center border border-2 py-1 px-2 rounded-lg border-blue-500">
+                    <button onClick={() => setIsPopupVisible(true)} className="flex text-blue-500 items-center border border-2 py-1 px-2 rounded-lg border-blue-500">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12.5165 4.17572C13.4278 3.27476 14.9088 3.27476 15.8201 4.17572C16.7266 5.07199 16.7266 6.52155 15.8201 7.41782L15.1334 8.09671C14.8389 8.38793 14.8361 8.8628 15.1274 9.15735C15.4186 9.45191 15.8935 9.45462 16.188 9.1634L16.8747 8.48451C18.3751 7.0011 18.3751 4.59244 16.8747 3.10904C15.379 1.63032 12.9576 1.63032 11.4619 3.10904L8.12529 6.40787C6.62489 7.89128 6.62489 10.2999 8.12529 11.7833C8.41985 12.0746 8.89471 12.0719 9.18594 11.7773C9.47716 11.4827 9.47445 11.0079 9.17989 10.7167C8.27336 9.82039 8.27336 8.37083 9.17989 7.47456L12.5165 4.17572Z" fill="#3B82F6"/>
                             <path d="M7.48346 15.8243C6.57217 16.7252 5.09119 16.7252 4.1799 15.8243C3.27337 14.928 3.27337 13.4784 4.1799 12.5822L4.86657 11.9033C5.16113 11.6121 5.16383 11.1372 4.87261 10.8426C4.58139 10.5481 4.10653 10.5454 3.81197 10.8366L3.1253 11.5155C1.6249 12.9989 1.6249 15.4076 3.1253 16.891C4.62096 18.3697 7.0424 18.3697 8.53806 16.891L11.8747 13.5921C13.3751 12.1087 13.3751 9.70006 11.8747 8.21666C11.5801 7.92544 11.1053 7.92814 10.814 8.2227C10.5228 8.51726 10.5255 8.99212 10.8201 9.28334C11.7266 10.1796 11.7266 11.6292 10.8201 12.5254L7.48346 15.8243Z" fill="#3B82F6"/>
@@ -174,7 +182,7 @@ const StoryPage = () => {
                     {!loading && (
                         <>
                             <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
-                                {story.lastQuestion == ''? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)' : story.lastQuestion}
+                                {story.lastQuestion === '' ? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)' : story.lastQuestion}
                             </div>
                             {!shouldHideOptions && (
                                 <>
@@ -224,6 +232,12 @@ const StoryPage = () => {
                     )}
                 </main>
             </div>
+            {isPopupVisible && (
+                <SharePopup
+                    storyLink={storyLink}
+                    onClose={() => setIsPopupVisible(false)}
+                />
+            )}
         </div>
     );
 };
