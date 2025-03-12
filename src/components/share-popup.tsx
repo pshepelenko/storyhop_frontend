@@ -13,6 +13,7 @@ const SharePopup: React.FC<SharePopupProps> = ({ storyLink, onClose }) => {
 
     const changeSwitcher = () => {
         setPublicSwitcherOn(!publicSwitcherOn);
+        setIsPublic(!isPublic);
     };
 
     const handleCopyLink = () => {
