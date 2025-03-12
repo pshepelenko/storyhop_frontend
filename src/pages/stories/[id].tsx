@@ -34,6 +34,8 @@ const StoryPage = () => {
     const [customOption, setCustomOption] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
+    const [shouldHideOptions, setShouldHideOptions] = useState<boolean>(false);
+    
 
     useEffect(() => {
         const fetchStory = async () => {
@@ -57,7 +59,11 @@ const StoryPage = () => {
                 }
             }
         };
-
+        if (story.lastQuestion == undefined)
+            setShouldHideOptions(true)
+        else {
+            setShouldHideOptions(story.lastQuestion.includes('-z-'));
+        }
         fetchStory();
     }, [id]);
 
@@ -101,7 +107,16 @@ const StoryPage = () => {
             }
 
             const data = await response.json();
-            const lastQuestion = data.text.endsWith('-z-') ? data.text.slice(0, -3) : data.text;
+            if (data.text == undefined)
+                setShouldHideOptions(true)
+            else {
+                setShouldHideOptions(story.lastQuestion.includes('-z-'));
+            }
+            let lastQuestion = ''
+            if (data.text != undefined){
+                lastQuestion = data.text.endsWith('-z-') ? data.text.slice(0, -3) : data.text;
+            }
+                
             setStory((prevStory) => ({
                 ...prevStory,
                 lastQuestion: lastQuestion,
@@ -120,8 +135,9 @@ const StoryPage = () => {
     if (!story) {
         return <div>Loading...</div>;
     }
-
-    const shouldHideOptions = story.lastQuestion.endsWith('-z-');
+    
+    
+        
 
     return (
         <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 font-[family-name:var(--font-geist-sans)]">
@@ -158,7 +174,7 @@ const StoryPage = () => {
                     {!loading && (
                         <>
                             <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
-                                {story.lastQuestion}
+                                {story.lastQuestion == ''? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)' : story.lastQuestion}
                             </div>
                             {!shouldHideOptions && (
                                 <>
@@ -196,8 +212,8 @@ const StoryPage = () => {
                                     )}
                                 </>
                             )}
-                            {error && <div className="text-red-500 mb-4">{error}</div>}
-                            <button onClick={continueStory} className="border border-blue-500 mt-4 bg-blue-500 w-full rounded-lg p-2 text-white">Продолжить историю</button>
+                            {error  && <div className="text-red-500 mb-4">{error}</div>}
+                            {!shouldHideOptions && <button onClick={continueStory} className="border border-blue-500 mt-4 bg-blue-500 w-full rounded-lg p-2 text-white">Продолжить историю</button>}
                         </>
                     )}
                     {loading && (
