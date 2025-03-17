@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Header from "../components/header";
 import Logo from "../components/logo";
 import StoriesListUnit from "../components/stories-list-unit";
 import Link from 'next/link';
