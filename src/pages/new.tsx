@@ -104,22 +104,22 @@ const NewStoryPage = () => {
                                 <div className="bg-white p-4 rounded-lg mb-4 font-semibold">Выберите мир, где происходит действие.</div>
                                 <div className="flex flex-col gap-4">
                                     <button
-                                        className={`py-2 px-4 rounded-lg ${world === 'Мир блоков' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
-                                        onClick={() => setWorld('Мир блоков')}
+                                        className={`py-2 px-4 rounded-lg ${world === 'Фэнтезийный мир, полный магии, мифических существ и древних секретов.' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
+                                        onClick={() => setWorld('Фэнтезийный мир, полный магии, мифических существ и древних секретов.')}
                                     >
-                                        Мир блоков
+                                        Мир, полный магии, мифических существ и древних секретов.
                                     </button>
                                     <button
-                                        className={`py-2 px-4 rounded-lg ${world === 'Мир магии и драконов' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
-                                        onClick={() => setWorld('Мир магии и драконов')}
+                                        className={`py-2 px-4 rounded-lg ${world === 'Футуристический мир с передовыми технологиями, инопланетянами, космическими путешествиями и цивилизациями ИИ' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
+                                        onClick={() => setWorld('Футуристический мир с передовыми технологиями, инопланетянами, космическими путешествиями и цивилизациями ИИ')}
                                     >
-                                        Мир магии и драконов
+                                        Мир будущего с передовыми технологиями, инопланетянами, космическими путешествиями и цивилизациями ИИ
                                     </button>
                                     <button
-                                        className={`py-2 px-4 rounded-lg ${world === 'Мир будущего' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
-                                        onClick={() => setWorld('Мир будущего')}
+                                        className={`py-2 px-4 rounded-lg ${world === 'Пиратский мир, полный потерянных сокровищ, кораблей-призраков и морских чудовищ' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
+                                        onClick={() => setWorld('Пиратский мир, полный потерянных сокровищ, кораблей-призраков и морских чудовищ')}
                                     >
-                                        Мир будущего
+                                        Пиратский мир, полный потерянных сокровищ, кораблей-призраков и морских чудовищ
                                     </button>
                                 </div>
                             </div>
