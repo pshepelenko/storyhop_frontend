@@ -40,8 +40,7 @@ export default function Home() {
  
   return (
     <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black min-h-screen max-w-lg sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center">
-        <Header />
+      <main className="flex flex-col gap-8 row-start-2 items-center pt-20">
         <Logo />
         <Link href="/new" className="bg-blue-500 hover:bg-blue-700 text-lg text-white py-4 px-4 mt-4 rounded-full"> 
           + Начать историю
