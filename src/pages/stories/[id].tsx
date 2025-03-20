@@ -65,10 +65,10 @@ const StoryPage = () => {
     }, [id]);
 
     useEffect(() => {
-        if (story.lastQuestion === undefined || story.lastQuestion === '') {
+        if (story.lastQuestion === undefined || story.lastQuestion === '' || story.lastQuestion === 'Ваш лимит исчерпан. Пожалуйта приобретите подписку для продолжения.') {
             setShouldHideOptions(true);
         } else {
-            setShouldHideOptions(story.lastQuestion.includes('-z-'));
+            setShouldHideOptions(false);
         }
     }, [story]);
 
@@ -125,13 +125,13 @@ const StoryPage = () => {
             }
             let lastQuestion = ''
             if (data.text != undefined){
-                lastQuestion = data.text.endsWith('-z-') ? data.text.slice(0, -3) : data.text;
+                lastQuestion = data.text;
             }
                 
             setStory((prevStory) => ({
                 ...prevStory,
                 lastQuestion: lastQuestion,
-                audioURLs: [...prevStory.audioURLs, data.audioUrl],
+                audioURLs: lastQuestion !== 'Ваш лимит исчерпан. Пожалуйта приобретите подписку для продолжения.' ? [...prevStory.audioURLs, data.audioUrl] : prevStory.audioURLs,
             }));
             setSelectedOption(null);
             setCustomOption('');
