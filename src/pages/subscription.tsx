@@ -81,7 +81,7 @@ export default function Subscription() {
   };
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black min-h-screen max-w-lg sm:p-20 font-[family-name:var(--font-geist-sans)]">
+    <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black min-h-screen w-full text-center max-w-lg font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-10 row-start-2 items-center pt-20">
         <Link href="/" className="flex w-full text-blue-500 items-center">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
