@@ -9,6 +9,12 @@ import Link from 'next/link';
 const StoryPage = () => {
     const router = useRouter();
     const { id } = router.query;
+
+    // Ensure the `id` is available before proceeding
+    if (!id) {
+        return <div>Loading...</div>;
+    }
+
     const [story, setStory] = useState<{
         storyId: string;
         userId: string;
@@ -32,13 +38,16 @@ const StoryPage = () => {
         coverURL: '',
         audioURLs: [],
     });
+
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [selectedDecisionType, setSelectedDecisionType] = useState<string | null>(null); // Store decision type
     const [customOption, setCustomOption] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [shouldHideOptions, setShouldHideOptions] = useState<boolean>(false);
     const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
     const [storyLink, setStoryLink] = useState<string>('');
+    const [decisionTypes, setDecisionTypes] = useState<string[]>([]); // State to store decision types
 
     useEffect(() => {
         const fetchStory = async () => {
@@ -55,14 +64,23 @@ const StoryPage = () => {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
 
-                    const data = await response.json();
+                    let data = await response.json();
+
+                    // Extract decision types from the lastQuestion
+                    const decisionTypeMatches = data.lastQuestion.match(/\[Decision Type: ([^\]]+)\]/g) || [];
+                    const extractedDecisionTypes = decisionTypeMatches.map((match: string) =>
+                        match.replace('[Decision Type: ', '').replace(']', '')
+                    );
+                    console.log(extractedDecisionTypes)
+                    setDecisionTypes(extractedDecisionTypes); // Save decision types in state
+                    data.lastQuestion = parseLastQuestion(data.lastQuestion); // Remove decision types from the text
                     setStory(data);
                 } catch (error) {
                     console.error('Error fetching story:', error);
                 }
             }
         };
-        fetchStory();
+        fetchStory();        
     }, [id]);
 
     useEffect(() => {
@@ -76,6 +94,7 @@ const StoryPage = () => {
         } else {
             setShouldHideOptions(false);
         }
+        
     }, [story]);
 
     useEffect(() => {
@@ -84,13 +103,34 @@ const StoryPage = () => {
         }
     }, [story.storyId]);
 
+    const parseLastQuestion = (lastQuestion: string) => {
+        // Remove [Decision Type: <Text>] from the options
+        console.log(lastQuestion.replace(/\[Decision Type: [^\]]+\]/g, '').trim())
+        return lastQuestion.replace(/\[Decision Type: [^\]]+\]/g, '').trim();
+    };
+
+    const extractDecisionType = (option: string) => {
+        // Extract the option number from the option text (e.g., 'Вариант 1' -> 0)
+        const match = option.match(/Вариант (\d+)/);
+        if (match) {
+            const optionIndex = parseInt(match[1], 10) - 1; // Convert to zero-based index
+            if (optionIndex >= 0 && optionIndex < decisionTypes.length) {
+                return decisionTypes[optionIndex]; // Return the corresponding decision type
+            }
+        }
+        return null; // Return null if no match or index is out of bounds
+    };
+
     const handleOptionClick = (option: string) => {
         setSelectedOption(option);
+        const decisionType = extractDecisionType(option); // Extract decision type
+        setSelectedDecisionType(decisionType); // Save decision type
         setCustomOption('');
     };
 
     const handleCustomOptionClick = () => {
         setSelectedOption('custom');
+        setSelectedDecisionType('Creativity'); // No decision type for custom options
     };
 
     const continueStory = async () => {
@@ -105,7 +145,6 @@ const StoryPage = () => {
         try {
             const userId = localStorage.getItem('userId');
             const choice = selectedOption === 'custom' ? customOption : selectedOption;
-            
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/continue`, {
                 method: 'POST',
@@ -117,6 +156,7 @@ const StoryPage = () => {
                     channel: 'web-app',
                     storyId: id,
                     choice: choice,
+                    decisionType: selectedDecisionType, // Include decision type in the request
                     requestId: requestId, // Include the requestId in the request body
                 }),
             });
@@ -137,7 +177,7 @@ const StoryPage = () => {
 
             setStory((prevStory) => ({
                 ...prevStory,
-                lastQuestion: lastQuestion,
+                lastQuestion: parseLastQuestion(lastQuestion),
                 audioURLs:
                     lastQuestion !==
                     'Ваш лимит исчерпан. Пожалуйта приобретите подписку для продолжения.'
@@ -160,16 +200,16 @@ const StoryPage = () => {
 
     return (
         <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-            <header >
+            <header>
                 <div className="flex w-full justify-between items-center">
                     <Link href="/" className="flex text-blue-500 items-center">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8.7069 4.23276C8.99256 3.93281 9.46729 3.92123 9.76724 4.2069C10.0672 4.49256 10.0788 4.9673 9.7931 5.26724L6 9.25H15.75C16.1642 9.25 16.5 9.58579 16.5 10C16.5 10.4142 16.1642 10.75 15.75 10.75H6L9.7931 14.7328C10.0788 15.0327 10.0672 15.5074 9.76724 15.7931C9.46729 16.0788 8.99256 16.0672 8.7069 15.7672L3.7069 10.5172C3.43103 10.2276 3.43103 9.77242 3.7069 9.48276L8.7069 4.23276Z" fill="#3B82F6"/>
+                            <path d="M8.7069 4.23276C8.99256 3.93281 9.46729 3.92123 9.76724 4.2069C10.0672 4.49256 10.0788 4.9673 9.7931 5.26724L6 9.25H15.75C16.1642 9.25 16.5 9.58579 16.5 10C16.5 10.4142 16.1642 10.75 15.75 10.75H6L9.7931 14.7328C10.0788 15.0327 10.0672 15.5074 9.76724 15.7931C9.46729 16.0788 8.99256 16.0672 8.7069 15.7672L3.7069 10.5172C3.43103 10.2276 3.43103 9.77242 3.7069 9.48276L8.7069 4.23276Z" fill="#3B82F6" />
                         </svg>
                         Назад
                     </Link>
                     <div id="title-desktop" className="hidden sm:block text-md text-semibold text-center font-bold px-2">
-                        {story.title}                   
+                        {story.title}
                     </div>
                     <button onClick={() => setIsPopupVisible(true)} className="flex text-blue-500 items-center border border-2 py-1 px-2 rounded-lg border-blue-500">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -181,7 +221,7 @@ const StoryPage = () => {
                 </div>
                 <div>
                     <div id="title-mobile" className="block sm:hidden mt-4 font-bold text-md text-semibold text-center px-2">
-                        {story.title}                   
+                        {story.title}
                     </div>
                 </div>
             </header>
@@ -198,25 +238,33 @@ const StoryPage = () => {
                             {!shouldHideOptions && (
                                 <>
                                     <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${selectedOption === 'Вариант 1' ? 'bg-gray-300 text-white' : 'bg-white'}`}
+                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
+                                            selectedOption === 'Вариант 1' ? 'bg-gray-300 text-white' : 'bg-white'
+                                        }`}
                                         onClick={() => handleOptionClick('Вариант 1')}
                                     >
                                         Вариант 1
                                     </button>
                                     <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${selectedOption === 'Вариант 2' ? 'bg-gray-300 text-white' : 'bg-white'}`}
+                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
+                                            selectedOption === 'Вариант 2' ? 'bg-gray-300 text-white' : 'bg-white'
+                                        }`}
                                         onClick={() => handleOptionClick('Вариант 2')}
                                     >
                                         Вариант 2
                                     </button>
                                     <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${selectedOption === 'Вариант 3' ? 'bg-gray-300 text-white' : 'bg-white'}`}
+                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
+                                            selectedOption === 'Вариант 3' ? 'bg-gray-300 text-white' : 'bg-white'
+                                        }`}
                                         onClick={() => handleOptionClick('Вариант 3')}
                                     >
                                         Вариант 3
                                     </button>
                                     <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${selectedOption === 'custom' ? 'bg-gray-300 text-white' : 'bg-white'}`}
+                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
+                                            selectedOption === 'custom' ? 'bg-gray-300 text-white' : 'bg-white'
+                                        }`}
                                         onClick={handleCustomOptionClick}
                                     >
                                         Свой вариант
@@ -231,8 +279,15 @@ const StoryPage = () => {
                                     )}
                                 </>
                             )}
-                            {error  && <div className="text-red-500 mb-4">{error}</div>}
-                            {!shouldHideOptions && <button onClick={continueStory} className="border border-blue-500 mt-4 bg-blue-500 w-full rounded-lg p-2 text-white">Продолжить историю</button>}
+                            {error && <div className="text-red-500 mb-4">{error}</div>}
+                            {!shouldHideOptions && (
+                                <button
+                                    onClick={continueStory}
+                                    className="border border-blue-500 mt-4 bg-blue-500 w-full rounded-lg p-2 text-white"
+                                >
+                                    Продолжить историю
+                                </button>
+                            )}
                         </>
                     )}
                     {loading && (
@@ -244,10 +299,7 @@ const StoryPage = () => {
                 </main>
             </div>
             {isPopupVisible && (
-                <SharePopup
-                    storyLink={storyLink}
-                    onClose={() => setIsPopupVisible(false)}
-                />
+                <SharePopup storyLink={storyLink} onClose={() => setIsPopupVisible(false)} />
             )}
         </div>
     );

@@ -5,7 +5,7 @@ import Spinner from '@/components/spinner';
 import Link from 'next/link';
 
 const NewStoryPage = () => {
-    const [authorAge, setAuthorAge] = useState<string | null>(null);
+    const [authorAge, setAuthorAge] = useState<string | null>('11');
     const [world, setWorld] = useState<string | null>(null);
     const [comments, setComments] = useState<string>('Дополнительных комментариев нет');
     const [error, setError] = useState<string | null>(null);
@@ -81,7 +81,7 @@ const NewStoryPage = () => {
                         </div>
                     ) : (
                         <>
-                            <div className="mb-8">
+                            {/* <div className="mb-8">
                                 <div className="bg-white p-4 rounded-lg mb-4 font-semibold">Подскажите, сколько лет будущему автору?</div>
                                 <div className="flex gap-4">
                                     <button
@@ -103,7 +103,7 @@ const NewStoryPage = () => {
                                         11+
                                     </button>
                                 </div>
-                            </div>
+                            </div> */}
                             <div className="mb-8">
                                 <div className="bg-white p-4 rounded-lg mb-4 font-semibold">Выберите мир, где происходит действие.</div>
                                 <div className="flex flex-col gap-4">
