@@ -11,10 +11,6 @@ const StoryPage = () => {
     const { id } = router.query;
 
     // Ensure the `id` is available before proceeding
-    if (!id) {
-        return <div>Loading...</div>;
-    }
-
     const [story, setStory] = useState<{
         storyId: string;
         userId: string;
@@ -65,7 +61,7 @@ const StoryPage = () => {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                    let data = await response.json();
+                    const data = await response.json();
 
                     // Extract decision types from the lastQuestion
                     const decisionTypeMatches = data.lastQuestion.match(/\[Decision Type: ([^\]]+)\]/g) || [];
