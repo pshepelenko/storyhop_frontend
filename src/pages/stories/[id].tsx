@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { v4 as uuidv4 } from 'uuid'; // Import uuidv4
 import AudioElement from '../../components/audio-element';
 import Spinner from '../../components/spinner';
 import SharePopup from '../../components/share-popup';
@@ -65,7 +66,12 @@ const StoryPage = () => {
     }, [id]);
 
     useEffect(() => {
-        if (story.lastQuestion === undefined || story.lastQuestion === '' || story.lastQuestion === 'Ваш лимит исчерпан. Пожалуйта приобретите подписку для продолжения.') {
+        if (
+            story.lastQuestion === undefined ||
+            story.lastQuestion === '' ||
+            story.lastQuestion ===
+                'Ваш лимит исчерпан. Пожалуйта приобретите подписку на странице https://www.story-hop.com/subscription для продолжения.'
+        ) {
             setShouldHideOptions(true);
         } else {
             setShouldHideOptions(false);
@@ -95,10 +101,11 @@ const StoryPage = () => {
 
         setLoading(true);
         setError(null);
-
+        const requestId = uuidv4(); // Generate a unique requestId
         try {
             const userId = localStorage.getItem('userId');
             const choice = selectedOption === 'custom' ? customOption : selectedOption;
+            
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/continue`, {
                 method: 'POST',
@@ -110,6 +117,7 @@ const StoryPage = () => {
                     channel: 'web-app',
                     storyId: id,
                     choice: choice,
+                    requestId: requestId, // Include the requestId in the request body
                 }),
             });
 
@@ -118,26 +126,29 @@ const StoryPage = () => {
             }
 
             const data = await response.json();
-            if (data.text == undefined)
-                setShouldHideOptions(true)
+            if (data.text == undefined) setShouldHideOptions(true);
             else {
                 setShouldHideOptions(story.lastQuestion.includes('-z-'));
             }
-            let lastQuestion = ''
-            if (data.text != undefined){
+            let lastQuestion = '';
+            if (data.text != undefined) {
                 lastQuestion = data.text;
             }
-                
+
             setStory((prevStory) => ({
                 ...prevStory,
                 lastQuestion: lastQuestion,
-                audioURLs: lastQuestion !== 'Ваш лимит исчерпан. Пожалуйта приобретите подписку для продолжения.' ? [...prevStory.audioURLs, data.audioUrl] : prevStory.audioURLs,
+                audioURLs:
+                    lastQuestion !==
+                    'Ваш лимит исчерпан. Пожалуйта приобретите подписку для продолжения.'
+                        ? [...prevStory.audioURLs, data.audioUrl]
+                        : prevStory.audioURLs,
             }));
             setSelectedOption(null);
             setCustomOption('');
         } catch (error) {
             console.error('Error continuing story:', error);
-            setError('Ошибка при продолжении истории' + error);
+            setError(`Ошибка при продолжении истории. Запрос с идентификатором ${requestId} и кодом ошибки ${error}`);
         } finally {
             setLoading(false);
         }
