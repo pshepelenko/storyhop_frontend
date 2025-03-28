@@ -39,6 +39,7 @@ const StoryPage = () => {
         audioURLs: [],
     });
 
+    const [decisionTypes, setDecisionTypes] = useState<string[]>([]); // State to store decision types
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [selectedDecisionType, setSelectedDecisionType] = useState<string | null>(null); // Store decision type
     const [customOption, setCustomOption] = useState<string>('');
@@ -47,22 +48,22 @@ const StoryPage = () => {
     const [shouldHideOptions, setShouldHideOptions] = useState<boolean>(false);
     const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
     const [storyLink, setStoryLink] = useState<string>('');
-    const [decisionTypes, setDecisionTypes] = useState<string[]>([]); // State to store decision types
 
     useEffect(() => {
         const fetchStory = async () => {
-            if (id) {
-                try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/${id}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                    });
+            if (!id) return; // Ensure `id` is available before making the request
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
                     let data = await response.json();
 
@@ -71,7 +72,6 @@ const StoryPage = () => {
                     const extractedDecisionTypes = decisionTypeMatches.map((match: string) =>
                         match.replace('[Decision Type: ', '').replace(']', '')
                     );
-                    console.log(extractedDecisionTypes)
                     setDecisionTypes(extractedDecisionTypes); // Save decision types in state
                     data.lastQuestion = parseLastQuestion(data.lastQuestion); // Remove decision types from the text
                     setStory(data);
@@ -79,9 +79,8 @@ const StoryPage = () => {
                     console.error('Error fetching story:', error);
                 }
             }
-        };
-        fetchStory();        
-    }, [id]);
+        fetchStory();
+    }, [id]); // Ensure this hook runs whenever `id` changes
 
     useEffect(() => {
         if (
@@ -94,7 +93,6 @@ const StoryPage = () => {
         } else {
             setShouldHideOptions(false);
         }
-        
     }, [story]);
 
     useEffect(() => {
@@ -105,7 +103,6 @@ const StoryPage = () => {
 
     const parseLastQuestion = (lastQuestion: string) => {
         // Remove [Decision Type: <Text>] from the options
-        console.log(lastQuestion.replace(/\[Decision Type: [^\]]+\]/g, '').trim())
         return lastQuestion.replace(/\[Decision Type: [^\]]+\]/g, '').trim();
     };
 
@@ -174,7 +171,11 @@ const StoryPage = () => {
             if (data.text != undefined) {
                 lastQuestion = data.text;
             }
-
+            const decisionTypeMatches = lastQuestion.match(/\[Decision Type: ([^\]]+)\]/g) || [];
+            const extractedDecisionTypes = decisionTypeMatches.map((match: string) =>
+                match.replace('[Decision Type: ', '').replace(']', '')
+            );
+            setDecisionTypes(extractedDecisionTypes); // Save decision types in state
             setStory((prevStory) => ({
                 ...prevStory,
                 lastQuestion: parseLastQuestion(lastQuestion),

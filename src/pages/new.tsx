@@ -5,7 +5,7 @@ import Spinner from '@/components/spinner';
 import Link from 'next/link';
 
 const NewStoryPage = () => {
-    const [authorAge, setAuthorAge] = useState<string | null>('11');
+    const authorAge ='11';
     const [world, setWorld] = useState<string | null>(null);
     const [comments, setComments] = useState<string>('Дополнительных комментариев нет');
     const [error, setError] = useState<string | null>(null);
