@@ -41,8 +41,9 @@ export default function Home() {
   return (
     <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black min-h-screen max-w-lg  font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center pt-10">
-        <div className='w-full flex justify-end mr-4 mb-8'>
-          <Link href="/subscription" className='border p-2 rounded-lg text-blue-500 border-blue-500'>Подписка</Link>
+        <div className='w-full flex justify-between mr-4 mb-8'>
+          <Link href="/choices" className='border p-2 rounded-lg border-gray-300'>📊💬📈 Ответы</Link>
+          <Link href="/subscription" className='border p-2 rounded-lg border-gray-300'>📜💳✅ Подписка</Link>
         </div>
         <Logo />
         {stories.length === 0 && <Landing />}
