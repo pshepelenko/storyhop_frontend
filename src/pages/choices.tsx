@@ -10,13 +10,14 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { ChartData } from 'chart.js'; // Import ChartData type
 
 // Register Chart.js components
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
 export default function Choices() {
   const [choices, setChoices] = useState<Record<string, number>>({});
-  const [chartData, setChartData] = useState<any>(null);
+  const [chartData, setChartData] = useState<ChartData<'radar'> | null>(null); // Use ChartData type for radar chart
 
   // Predefined options with Russian translations
   const predefinedOptions = [
