@@ -5,6 +5,7 @@ import AudioElement from '../../components/audio-element';
 import Spinner from '../../components/spinner';
 import SharePopup from '../../components/share-popup';
 import Link from 'next/link';
+import * as amplitude from '@amplitude/analytics-browser';
 
 const StoryPage = () => {
     const router = useRouter();
@@ -61,6 +62,10 @@ const StoryPage = () => {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
+                    amplitude.track('Story opened', {
+                        userId: localStorage.getItem('userId'),
+                        storyId: id,
+                    });
                     const data = await response.json();
 
                     // Extract decision types from the lastQuestion
@@ -157,7 +162,10 @@ const StoryPage = () => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            amplitude.track('Story continued', {
+                            userId: userId,
+                            storyId: id,
+                        });
             const data = await response.json();
             if (data.text == undefined) setShouldHideOptions(true);
             else {

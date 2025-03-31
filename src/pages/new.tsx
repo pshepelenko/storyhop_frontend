@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { v4 as uuidv4 } from 'uuid'; // Import uuidv4
 import Spinner from '@/components/spinner';
 import Link from 'next/link';
+import * as amplitude from '@amplitude/analytics-browser';
 
 const NewStoryPage = () => {
     const authorAge ='11';
@@ -47,7 +48,10 @@ const NewStoryPage = () => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            amplitude.track('Story Created', {
+                userId: userId,
+                world: world
+            });
             const data = await response.json();
             localStorage.setItem('userId', data.userId);
             localStorage.setItem('storyData', JSON.stringify(data));
