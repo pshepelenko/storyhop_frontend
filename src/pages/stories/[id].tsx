@@ -45,6 +45,8 @@ const StoryPage = () => {
     const [shouldHideOptions, setShouldHideOptions] = useState<boolean>(false);
     const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
     const [storyLink, setStoryLink] = useState<string>('');
+    const [showLimitMessage, setShowLimitMessage] = useState<boolean>(false);
+
 
     useEffect(() => {
         const fetchStory = async () => {
@@ -88,12 +90,18 @@ const StoryPage = () => {
             story.lastQuestion === undefined ||
             story.lastQuestion === '' ||
             story.lastQuestion ===
-                'Ваш лимит исчерпан. Пожалуйта приобретите подписку на странице https://www.story-hop.com/subscription для продолжения.'
+                'Ваш лимит исчерпан.'
         ) {
             setShouldHideOptions(true);
         } else {
             setShouldHideOptions(false);
         }
+        if ( story.lastQuestion ===
+            'Ваш лимит исчерпан.') {
+                setShowLimitMessage(true);
+                setShouldHideOptions(true);
+        }
+                  
     }, [story]);
 
     useEffect(() => {
@@ -237,9 +245,18 @@ const StoryPage = () => {
                     ))}
                     {!loading && (
                         <>
-                            <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
-                                {story.lastQuestion === '' ? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)' : story.lastQuestion}
-                            </div>
+                            {
+                                !showLimitMessage &&
+                                <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
+                                    {story.lastQuestion === '' ? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)' : story.lastQuestion}
+                                </div>
+                            }
+                            {
+                                showLimitMessage &&
+                                <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
+                                   ⚠️📖⏳ Ваш лимит глав исчерпан. Купите пакет тут 🔗 <Link href="/subscription" className="text-blue-500">https://story-hop.com/subscription</Link> ✅.
+                                </div>
+                            }
                             {!shouldHideOptions && (
                                 <>
                                     <button

@@ -84,7 +84,8 @@ export default function Choices() {
           Назад
         </Link>
         <div className="w-full">
-          <div className="font-bold text-center mb-10">Информация о профиле ответов пользователя</div>
+          <div className="font-bold text-center mb-10">Информация о профиле принятия решений пользователя на основе выбора возможностей развития сюжета</div>
+          
           <div>
             {chartData ? (
               <Radar
