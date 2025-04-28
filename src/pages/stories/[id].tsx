@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { v4 as uuidv4 } from 'uuid'; // Import uuidv4
-import AudioElement from '../../components/audio-element';
+import ContentAudioElement from '../../components/content-audio-element';
 import Spinner from '../../components/spinner';
 import SharePopup from '../../components/share-popup';
 import Link from 'next/link';
 import * as amplitude from '@amplitude/analytics-browser';
+import OptionAudioElement from '../../components/options-audio-element'; // Import the OptionAudioElement component
 
 const StoryPage = () => {
     const router = useRouter();
     const { id } = router.query;
 
-    // Ensure the `id` is available before proceeding
     const [story, setStory] = useState<{
         storyId: string;
         userId: string;
@@ -22,7 +22,12 @@ const StoryPage = () => {
         lastQuestion: string;
         title: string;
         coverURL: string;
-        audioURLs: string[];
+        chapterContentAudios: string[];
+        lastChapterAudios: {
+            URL: string;
+            type: string;
+            chapterId: string;
+        }[]
     }>({
         storyId: '',
         userId: '',
@@ -33,10 +38,12 @@ const StoryPage = () => {
         lastQuestion: '',
         title: '',
         coverURL: '',
-        audioURLs: [],
+        chapterContentAudios: [],
+        lastChapterAudios: [{URL: '', type: '', chapterId: ''}]
     });
 
     const [decisionTypes, setDecisionTypes] = useState<string[]>([]); // State to store decision types
+    const [options, setOptions] = useState<string[]>([]); // State to store option texts
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [selectedDecisionType, setSelectedDecisionType] = useState<string | null>(null); // Store decision type
     const [customOption, setCustomOption] = useState<string>('');
@@ -46,7 +53,16 @@ const StoryPage = () => {
     const [isPopupVisible, setIsPopupVisible] = useState<boolean>(false);
     const [storyLink, setStoryLink] = useState<string>('');
     const [showLimitMessage, setShowLimitMessage] = useState<boolean>(false);
+    const [previousContentAudios, setPreviousContentAudios] = useState<string[]>([]);
+    const [lastContentAudio, setLastContentAudio] = useState<string>('');    
 
+    // Helper function to extract options from the lastQuestion
+    const extractOptionsFromLastQuestion = (lastQuestion: string): string[] => {
+        return lastQuestion
+            .split('\n') // Split by lines
+            .filter((line: string) => line.match(/^\d+\./)) // Match lines starting with "1.", "2.", etc.
+            .map((line: string) => line.replace(/^\d+\.\s*/, '').replace(/\[Decision Type: [^\]]+\]/, '').trim()); // Remove numbering and decision type
+    };
 
     useEffect(() => {
         const fetchStory = async () => {
@@ -64,24 +80,34 @@ const StoryPage = () => {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                    amplitude.track('Story opened', {
-                        userId: localStorage.getItem('userId'),
-                        storyId: id,
-                    });
-                    const data = await response.json();
+                amplitude.track('Story opened', {
+                    userId: localStorage.getItem('userId'),
+                    storyId: id,
+                });
 
-                    // Extract decision types from the lastQuestion
-                    const decisionTypeMatches = data.lastQuestion.match(/\[Decision Type: ([^\]]+)\]/g) || [];
-                    const extractedDecisionTypes = decisionTypeMatches.map((match: string) =>
-                        match.replace('[Decision Type: ', '').replace(']', '')
-                    );
-                    setDecisionTypes(extractedDecisionTypes); // Save decision types in state
-                    data.lastQuestion = parseLastQuestion(data.lastQuestion); // Remove decision types from the text
-                    setStory(data);
-                } catch (error) {
-                    console.error('Error fetching story:', error);
-                }
+                const data = await response.json();
+
+                // Extract decision types and options from the lastQuestion
+                const decisionTypeMatches = data.lastQuestion.match(/\[Decision Type: ([^\]]+)\]/g) || [];
+                const extractedDecisionTypes = decisionTypeMatches.map((match: string) =>
+                    match.replace('[Decision Type: ', '').replace(']', '')
+                );
+                setDecisionTypes(extractedDecisionTypes); // Save decision types in state
+
+                const extractedOptions = extractOptionsFromLastQuestion(data.lastQuestion); // Use the helper function
+                setOptions(extractedOptions); // Save option texts in state
+
+                data.lastQuestion = parseLastQuestion(data.lastQuestion); // Remove decision types from the text
+                setStory(data);
+                setLastContentAudio(data.chapterContentAudios[data.chapterContentAudios.length - 1]); // Save the last content audio
+                setPreviousContentAudios(data.chapterContentAudios.slice(0, -1)); // Save previous content audios
+                
+
+            } catch (error) {
+                console.error('Error fetching story:', error);
             }
+        };
+
         fetchStory();
     }, [id]); // Ensure this hook runs whenever `id` changes
 
@@ -89,19 +115,16 @@ const StoryPage = () => {
         if (
             story.lastQuestion === undefined ||
             story.lastQuestion === '' ||
-            story.lastQuestion ===
-                'Ваш лимит исчерпан.'
+            story.lastQuestion === 'Ваш лимит исчерпан.'
         ) {
             setShouldHideOptions(true);
         } else {
             setShouldHideOptions(false);
         }
-        if ( story.lastQuestion ===
-            'Ваш лимит исчерпан.') {
-                setShowLimitMessage(true);
-                setShouldHideOptions(true);
+        if (story.lastQuestion === 'Ваш лимит исчерпан.') {
+            setShowLimitMessage(true);
+            setShouldHideOptions(true);
         }
-                  
     }, [story]);
 
     useEffect(() => {
@@ -115,22 +138,9 @@ const StoryPage = () => {
         return lastQuestion.replace(/\[Decision Type: [^\]]+\]/g, '').trim();
     };
 
-    const extractDecisionType = (option: string) => {
-        // Extract the option number from the option text (e.g., 'Вариант 1' -> 0)
-        const match = option.match(/Вариант (\d+)/);
-        if (match) {
-            const optionIndex = parseInt(match[1], 10) - 1; // Convert to zero-based index
-            if (optionIndex >= 0 && optionIndex < decisionTypes.length) {
-                return decisionTypes[optionIndex]; // Return the corresponding decision type
-            }
-        }
-        return null; // Return null if no match or index is out of bounds
-    };
-
-    const handleOptionClick = (option: string) => {
+    const handleOptionClick = (option: string, index: number) => {
         setSelectedOption(option);
-        const decisionType = extractDecisionType(option); // Extract decision type
-        setSelectedDecisionType(decisionType); // Save decision type
+        setSelectedDecisionType(decisionTypes[index] || null); // Save decision type based on index
         setCustomOption('');
     };
 
@@ -170,10 +180,12 @@ const StoryPage = () => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+
             amplitude.track('Story continued', {
-                            userId: userId,
-                            storyId: id,
-                        });
+                userId: userId,
+                storyId: id,
+            });
+
             const data = await response.json();
             if (data.text == undefined) setShouldHideOptions(true);
             else {
@@ -188,15 +200,18 @@ const StoryPage = () => {
                 match.replace('[Decision Type: ', '').replace(']', '')
             );
             setDecisionTypes(extractedDecisionTypes); // Save decision types in state
+
+            const extractedOptions = extractOptionsFromLastQuestion(lastQuestion); // Use the helper function
+            setOptions(extractedOptions); // Save option texts in state
+
             setStory((prevStory) => ({
                 ...prevStory,
                 lastQuestion: parseLastQuestion(lastQuestion),
-                audioURLs:
-                    lastQuestion !==
-                    'Ваш лимит исчерпан. Пожалуйта приобретите подписку для продолжения.'
-                        ? [...prevStory.audioURLs, data.audioUrl]
-                        : prevStory.audioURLs,
+                chapterContentAudios: [...data.chapterContentAudios],
+                lastChapterAudios: [...data.lastChapterAudios],
             }));
+            setLastContentAudio(data.chapterContentAudios[data.chapterContentAudios.length - 1]); // Update the last content audio
+            setPreviousContentAudios(data.chapterContentAudios.slice(0, -1)); // Update previous content audios
             setSelectedOption(null);
             setCustomOption('');
         } catch (error) {
@@ -240,74 +255,70 @@ const StoryPage = () => {
             </header>
             <div className="bg-gray-100 h-full mt-8 flex flex-col justify-between">
                 <main className="flex-grow flex flex-col gap-2 py-5 px-3 items-center sm:items-start">
-                    {story.audioURLs.map((audioURL: string, index: number) => (
-                        <AudioElement key={index} audioURL={audioURL} title={`Глава ${index + 1}`} />
+                    {previousContentAudios.map((audioURL: string, index: number) => (
+                        <ContentAudioElement
+                            key={`content-audio-${index}`} // Ensure unique key for each element
+                            contentAudioURL={audioURL}
+                            optionsIntroAudioURL={''}
+                            title={`Глава ${index + 1}`}
+                        />
                     ))}
+
+                    {lastContentAudio !== '' && story.lastChapterAudios[0] !== undefined && (
+                        <ContentAudioElement
+                            key={`last-content-audio-${Date.now()}`} // Use a unique key for the last element
+                            contentAudioURL={lastContentAudio}
+                            optionsIntroAudioURL={story.lastChapterAudios[0].URL}
+                            title={`Глава ${story.chapterContentAudios.length}`}
+                        />
+                    )}
                     {!loading && (
                         <>
-                            {
-                                !showLimitMessage &&
+                            {!showLimitMessage && (
                                 <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
-                                    {story.lastQuestion === '' ? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)' : story.lastQuestion}
+                                    {story.lastQuestion === ''
+                                        ? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)'
+                                        : story.lastQuestion.split('\n')[0]}
                                 </div>
-                            }
-                            {
-                                showLimitMessage &&
+                            )}
+                            {showLimitMessage && (
                                 <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
-                                   ⚠️📖⏳ Ваш лимит глав исчерпан. Купите пакет тут 🔗 <Link href="/subscription" className="text-blue-500">https://story-hop.com/subscription</Link> ✅.
+                                    ⚠️📖⏳ Ваш лимит глав исчерпан. Купите пакет тут 🔗{' '}
+                                    <Link href="/subscription" className="text-blue-500">
+                                        https://story-hop.com/subscription
+                                    </Link>{' '}
+                                    ✅.
                                 </div>
-                            }
+                            )}
                             {!shouldHideOptions && (
                                 <>
-                                    <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
-                                            selectedOption === 'Вариант 1' ? 'bg-gray-300 text-white' : 'bg-white'
-                                        }`}
-                                        onClick={() => handleOptionClick('Вариант 1')}
-                                    >
-                                        Вариант 1
-                                    </button>
-                                    <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
-                                            selectedOption === 'Вариант 2' ? 'bg-gray-300 text-white' : 'bg-white'
-                                        }`}
-                                        onClick={() => handleOptionClick('Вариант 2')}
-                                    >
-                                        Вариант 2
-                                    </button>
-                                    <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
-                                            selectedOption === 'Вариант 3' ? 'bg-gray-300 text-white' : 'bg-white'
-                                        }`}
-                                        onClick={() => handleOptionClick('Вариант 3')}
-                                    >
-                                        Вариант 3
-                                    </button>
-                                    <button
-                                        className={`border border-gray-300 w-full rounded-lg p-2 ${
-                                            selectedOption === 'custom' ? 'bg-gray-300 text-white' : 'bg-white'
-                                        }`}
-                                        onClick={handleCustomOptionClick}
-                                    >
-                                        Свой вариант
-                                    </button>
-                                    {selectedOption === 'custom' && (
-                                        <textarea
-                                            className="w-full p-4 rounded-lg border border-gray-200 mt-4"
-                                            rows={3}
-                                            value={customOption}
-                                            onChange={(e) => setCustomOption(e.target.value)}
-                                        />
-                                    )}
+                                    {options.map((option, index) => (
+                                        <div onClick={() => handleOptionClick(option, index)}>
+                                            <OptionAudioElement
+                                                key={index}
+                                                text={option} // Pass the option text
+                                                audioURL={story.lastChapterAudios[index+1]?.URL || ''} // Pass the corresponding audio URL
+                                                isSelected={selectedOption === option} // Highlight if selected
+                                                 // Handle option click
+                                            />
+                                        </div>
+                                        
+                                    ))}
+                                    
                                 </>
                             )}
                             {error && <div className="text-red-500 mb-4">{error}</div>}
                             {!shouldHideOptions && (
                                 <button
                                     onClick={continueStory}
-                                    className="border border-blue-500 mt-4 bg-blue-500 w-full rounded-lg p-2 text-white"
+                                    className="border border-blue-500 mt-4 bg-blue-500 w-full rounded-lg p-2 text-white flex justify-center"
                                 >
-                                    Продолжить историю
+                                    Продолжить 
+                                    <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M22.5862 18.9207C22.0149 19.2807 21.0654 19.2946 20.4655 18.9518C19.8656 18.609 19.8425 18.0393 20.4138 17.6794L28 12.9001L8.5 12.9001C7.67157 12.9001 7 12.4971 7 12.0001C7 11.503 7.67157 11.1001 8.5 11.1001L28 11.1001L20.4138 6.32074C19.8425 5.9608 19.8656 5.39112 20.4655 5.04833C21.0654 4.70553 22.0149 4.71942 22.5862 5.07936L32.5862 11.3794C33.1379 11.7269 33.1379 12.2732 32.5862 12.6207L22.5862 18.9207Z" fill="#FFF"/>
+                                    </svg>
+
+
                                 </button>
                             )}
                         </>
@@ -320,9 +331,7 @@ const StoryPage = () => {
                     )}
                 </main>
             </div>
-            {isPopupVisible && (
-                <SharePopup storyLink={storyLink} onClose={() => setIsPopupVisible(false)} />
-            )}
+            {isPopupVisible && <SharePopup storyLink={storyLink} onClose={() => setIsPopupVisible(false)} />}
         </div>
     );
 };
