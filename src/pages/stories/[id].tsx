@@ -144,11 +144,7 @@ const StoryPage = () => {
         setCustomOption('');
     };
 
-    const handleCustomOptionClick = () => {
-        setSelectedOption('custom');
-        setSelectedDecisionType('Creativity'); // No decision type for custom options
-    };
-
+    
     const continueStory = async () => {
         if (!selectedOption) {
             setError('Пожалуйста, выберите вариант развития событий.');

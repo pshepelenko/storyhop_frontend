@@ -7,27 +7,10 @@ interface OptionAudioElementProps {
 }
 
 const OptionAudioElement: React.FC<OptionAudioElementProps> = ({ audioURL, text, isSelected }) => {
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0);
+    
     const audioRef = useRef<HTMLAudioElement>(null);
     
-    useEffect(() => {
-        const audio = audioRef.current;
-        
-        if (audio) {
-            const updateProgress = () => {
-                setProgress((audio.currentTime / audio.duration) * 100);
-            };
-
-           
-            audio.addEventListener('timeupdate', updateProgress);
-            
-            return () => {
-                audio.removeEventListener('timeupdate', updateProgress);
-                
-            };
-        }
-    }, []);
+    
 
     const handlePlayAudio = () => {
         const contentAudio = audioRef.current;
@@ -35,19 +18,11 @@ const OptionAudioElement: React.FC<OptionAudioElementProps> = ({ audioURL, text,
             contentAudio.play().catch((error) => {
                 console.error('Error playing contentAudio:', error);
             });
-            setIsPlaying(true);
+            
         }
     };
 
-    const handlePauseAudio = () => {
-        const contentAudio = audioRef.current;
-        
-        if (contentAudio) {
-            contentAudio.pause();
-        }
-        
-        setIsPlaying(false);
-    };
+    
 
     return (
         <div className="w-full flex flex-col gap-8 items-center sm:items-start bg-gray-100">
