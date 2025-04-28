@@ -289,16 +289,13 @@ const StoryPage = () => {
                             {!shouldHideOptions && (
                                 <>
                                     {options.map((option, index) => (
-                                        <div onClick={() => handleOptionClick(option, index)}>
+                                        <div key={`option-${index}`} onClick={() => handleOptionClick(option, index)}>
                                             <OptionAudioElement
-                                                key={index}
                                                 text={option} // Pass the option text
-                                                audioURL={story.lastChapterAudios[index+1]?.URL || ''} // Pass the corresponding audio URL
+                                                audioURL={story.lastChapterAudios[index + 1]?.URL || ''} // Pass the corresponding audio URL
                                                 isSelected={selectedOption === option} // Highlight if selected
-                                                 // Handle option click
                                             />
                                         </div>
-                                        
                                     ))}
                                     
                                 </>

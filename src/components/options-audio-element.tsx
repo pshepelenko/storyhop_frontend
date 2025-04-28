@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useRef } from 'react';
 
 interface OptionAudioElementProps {
     audioURL: string;
