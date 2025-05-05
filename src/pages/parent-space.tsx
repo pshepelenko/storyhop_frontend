@@ -135,6 +135,7 @@ const ParentSpace = () => {
       alert('Не удалось сохранить настройки. Попробуйте еще раз.');
     } finally {
       setIsSavingSettings(false);
+      localStorage.setItem('lastMainCharacterName', childName);
     }
   };
 
