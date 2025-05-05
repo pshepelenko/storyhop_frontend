@@ -21,7 +21,7 @@ const ParentSpace = () => {
       setError(null);
 
       try {
-        let userId = localStorage.getItem('userId') || 'new-user';
+        const userId = localStorage.getItem('userId') || 'new-user';
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/settings`, {
           method: 'GET',
@@ -248,7 +248,7 @@ const ParentSpace = () => {
             ) : (
               <div>
                 <div>
-                  Впишите ситуацию, которую хотите проработать с ребенком. Например: "Развод родителей" или "Переезд в другую страну". Мы
+                  Впишите ситуацию, которую хотите проработать с ребенком. Например: &quot;Развод родителей&quot; или &quot;Переезд в другую страну&quot;. Мы
                   трансформируем ее в вызовы для ребенка, которые будем прорабатывать в историях, при этом их сюжет не будет однообразным.
                 </div>
                 <div className="flex gap-2 mt-4">
