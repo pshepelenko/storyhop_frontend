@@ -15,7 +15,7 @@ import { ChartData } from 'chart.js'; // Import ChartData type
 // Register Chart.js components
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
-export default function Choices() {
+const ChoicesChart = () => {
   const [choices, setChoices] = useState<Record<string, number>>({});
   const [chartData, setChartData] = useState<ChartData<'radar'> | null>(null); // Use ChartData type for radar chart
 
@@ -75,41 +75,38 @@ export default function Choices() {
   }, []);
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black min-h-screen w-full text-center max-w-lg font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-10 row-start-2 items-center pt-20 px-4">
-        <Link href="/" className="flex w-full text-blue-500 items-center">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8.7069 4.23276C8.99256 3.93281 9.46729 3.92123 9.76724 4.2069C10.0672 4.49256 10.0788 4.9673 9.7931 5.26724L6 9.25H15.75C16.1642 9.25 16.5 9.58579 16.5 10C16.5 10.4142 16.1642 10.75 15.75 10.75H6L9.7931 14.7328C10.0788 15.0327 10.0672 15.5074 9.76724 15.7931C9.46729 16.0788 8.99256 16.0672 8.7069 15.7672L3.7069 10.5172C3.43103 10.2276 3.43103 9.77242 3.7069 9.48276L8.7069 4.23276Z" fill="#3B82F6" />
-          </svg>
-          Назад
-        </Link>
+    <div>
+      {chartData ? (
+        <Radar
+          data={chartData}
+          options={{
+            responsive: true,
+            scales: {
+              r: {
+                angleLines: { display: true },
+                ticks: { stepSize: 1 },
+                suggestedMin: 0,
+                suggestedMax: Math.max(...Object.values(choices)) + 1,
+              },
+            },
+          }}
+        />
+      ) : (
+        <p>Загрузка данных...</p>
+      )}
+    </div>
+  );
+};
+
+export default function Choices() {
+  return (
+    <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black  w-full text-center max-w-lg font-[family-name:var(--font-geist-sans)]">
+      <main className="flex flex-col gap-10 row-start-2 items-center  px-4">
+        
         <div className="w-full">
-          <div className="font-bold text-center mb-10">Информация о профиле принятия решений пользователя на основе выбора возможностей развития сюжета</div>
+          <div className="font-semibold text-center mb-10">Информация о профиле принятия решений ребенка на основе выбора возможностей развития сюжета</div>
           
-          <div>
-            {chartData ? (
-              <Radar
-                data={chartData}
-                options={{
-                  responsive: true,
-                  scales: {
-                    r: {
-                      angleLines: {
-                        display: true,
-                      },
-                      ticks: {
-                        stepSize: 1, // Set step size to 1
-                      },
-                      suggestedMin: 0,
-                      suggestedMax: Math.max(...Object.values(choices)) + 1, // Dynamically adjust max value
-                    },
-                  },
-                }}
-              />
-            ) : (
-              <p>Загрузка данных...</p>
-            )}
-          </div>
+          <ChoicesChart />
         </div>
       </main>
     </div>
