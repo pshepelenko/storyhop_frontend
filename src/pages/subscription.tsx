@@ -98,7 +98,7 @@ export default function Subscription() {
           </div>
           <div className="border mt-4 p-2 rounded-lg flex flex-col items-center justify-center gap-2">
             <p>Добавить 200 глав</p>
-            <p>Цена 745 руб</p>
+            <p>Цена 1500 руб</p>
             <p className="text-gray-400 text-xs">Самозанятый Шепеленко П.А. ИНН 770170701945</p>
             <button
               onClick={handlePayment}
