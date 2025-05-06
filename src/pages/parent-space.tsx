@@ -36,10 +36,7 @@ const ParentSpace = () => {
 
         const data = await response.json();
 
-        if (!userId && data.userId) {
-          localStorage.setItem('userId', data.userId);
-        }
-
+        localStorage.setItem('userId', data.userId);
         setChildName(data.childName || '');
         setNarratives(data.narratives || []);
         setSubchallenges(data.subchallenges || []);
