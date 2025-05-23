@@ -43,13 +43,13 @@ export default function Home() {
       <main className="flex flex-col gap-8 row-start-2 items-center pt-10">
         <div className='w-full flex justify-between px-4 mb-8'>
           <Link href="/parent-space" className='border p-2 rounded-lg border-gray-300'>📊🛠️ Для родителей</Link>
-          <Link href="/subscription" className='border p-2 rounded-lg border-gray-300'>📜💳✅ Подписка</Link>
+          <Link href="/settings" className='border p-2 rounded-lg border-gray-300'>⚙️🌐💳 Настройки</Link>
         </div>
         <Logo />
-        {stories.length === 0 && <Landing />}
         <Link href="/new" className="bg-blue-500 hover:bg-blue-700 text-lg text-white py-4 px-4 rounded-full"> 
           + Начать историю
         </Link>
+        {stories.length === 0 && <Landing />}
         <div className="bg-gray-100 w-full">
           <div>
             <h1 className="text-lg w-full text-center text-bold mt-4">Твои истории</h1>          

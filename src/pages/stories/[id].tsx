@@ -9,6 +9,30 @@ import * as amplitude from '@amplitude/analytics-browser';
 import OptionAudioElement from '../../components/options-audio-element'; // Import the OptionAudioElement component
 
 const StoryPage = () => {
+    const UItext = {
+        russian: {
+            share: 'Поделиться',
+            continue: 'Продолжить',
+            back: 'Назад',
+            chapter: 'Глава',
+            storyFinished: 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)',
+            limitMessage: '⚠️📖⏳ Ваш лимит глав исчерпан. Перейдите в настройки и обновите подписку для продолжения чтения.',
+            pleaseSelectOption: 'Пожалуйста, выберите вариант развития событий.',
+            creatingNextChapter: 'Создаем продолжение истории. Подождите...',
+        },
+        english: {
+            share: 'Share',
+            continue: 'Continue',
+            back: 'Back',
+            chapter: 'Chapter',
+            storyFinished: 'The story is finished. We have created a great audiobook!\n You can share it with your friends by clicking the button above :-)',
+            limitMessage: '⚠️📖⏳ Your chapter limit has been reached. Please go to settings and renew your subscription to continue reading.',
+            pleaseSelectOption: 'Please select an option to continue the story.',
+            creatingNextChapter: 'Creating the next chapter. Please wait...',
+        },
+    };
+
+    const [language, setLanguage] = useState<keyof typeof UItext>('russian'); // State for language
     const router = useRouter();
     const { id } = router.query;
 
@@ -27,7 +51,7 @@ const StoryPage = () => {
             URL: string;
             type: string;
             chapterId: string;
-        }[]
+        }[];
     }>({
         storyId: '',
         userId: '',
@@ -39,11 +63,11 @@ const StoryPage = () => {
         title: '',
         coverURL: '',
         chapterContentAudios: [],
-        lastChapterAudios: [{URL: '', type: '', chapterId: ''}]
+        lastChapterAudios: [{ URL: '', type: '', chapterId: '' }],
     });
 
-    const [decisionTypes, setDecisionTypes] = useState<string[]>([]); // State to store decision types
-    const [options, setOptions] = useState<string[]>([]); // State to store option texts
+    const [decisionTypes, setDecisionTypes] = useState<string[]>([]);
+    const [options, setOptions] = useState<string[]>([]);
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [selectedDecisionType, setSelectedDecisionType] = useState<string | null>(null); // Store decision type
     const [customOption, setCustomOption] = useState<string>('');
@@ -133,6 +157,11 @@ const StoryPage = () => {
         }
     }, [story.storyId]);
 
+    useEffect(() => {
+        const storyLanguage = localStorage.getItem('storyLanguage') || 'russian';
+        setLanguage(storyLanguage as keyof typeof UItext);
+    }, []);
+
     const parseLastQuestion = (lastQuestion: string) => {
         // Remove [Decision Type: <Text>] from the options
         return lastQuestion.replace(/\[Decision Type: [^\]]+\]/g, '').trim();
@@ -147,7 +176,7 @@ const StoryPage = () => {
     
     const continueStory = async () => {
         if (!selectedOption) {
-            setError('Пожалуйста, выберите вариант развития событий.');
+            setError(UItext[language].pleaseSelectOption);
             return;
         }
 
@@ -169,7 +198,8 @@ const StoryPage = () => {
                     storyId: id,
                     choice: choice,
                     decisionType: selectedDecisionType, // Include decision type in the request
-                    requestId: requestId, // Include the requestId in the request body
+                    requestId: requestId, // Include the requestId in the request body,
+                    language: localStorage.getItem('storyLanguage') || 'russian'
                 }),
             });
 
@@ -183,6 +213,20 @@ const StoryPage = () => {
             });
 
             const data = await response.json();
+
+            // Check for subscription limit message
+            if (data.text === 'Ваш лимит исчерпан.') {
+                setShowLimitMessage(true);
+                setShouldHideOptions(true);
+                setError(UItext[language].limitMessage);
+                setStory((prevStory) => ({
+                    ...prevStory,
+                    lastQuestion: '',
+                }));
+                setLoading(false);
+                return;
+            }
+
             if (data.text == undefined) setShouldHideOptions(true);
             else {
                 setShouldHideOptions(story.lastQuestion.includes('-z-'));
@@ -212,7 +256,11 @@ const StoryPage = () => {
             setCustomOption('');
         } catch (error) {
             console.error('Error continuing story:', error);
-            setError(`Ошибка при продолжении истории. Запрос с идентификатором ${requestId} и кодом ошибки ${error}`);
+            setError(
+                language === 'english'
+                    ? `Error continuing story. Request ID: ${requestId}.`
+                    : `Ошибка при продолжении истории. Запрос с идентификатором ${requestId}.`
+            );
         } finally {
             setLoading(false);
         }
@@ -230,7 +278,7 @@ const StoryPage = () => {
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M8.7069 4.23276C8.99256 3.93281 9.46729 3.92123 9.76724 4.2069C10.0672 4.49256 10.0788 4.9673 9.7931 5.26724L6 9.25H15.75C16.1642 9.25 16.5 9.58579 16.5 10C16.5 10.4142 16.1642 10.75 15.75 10.75H6L9.7931 14.7328C10.0788 15.0327 10.0672 15.5074 9.76724 15.7931C9.46729 16.0788 8.99256 16.0672 8.7069 15.7672L3.7069 10.5172C3.43103 10.2276 3.43103 9.77242 3.7069 9.48276L8.7069 4.23276Z" fill="#3B82F6" />
                         </svg>
-                        Назад
+                        {UItext[language].back}
                     </Link>
                     <div id="title-desktop" className="hidden sm:block text-md text-semibold text-center font-bold px-2">
                         {story.title}
@@ -240,7 +288,7 @@ const StoryPage = () => {
                             <path d="M12.5165 4.17572C13.4278 3.27476 14.9088 3.27476 15.8201 4.17572C16.7266 5.07199 16.7266 6.52155 15.8201 7.41782L15.1334 8.09671C14.8389 8.38793 14.8361 8.8628 15.1274 9.15735C15.4186 9.45191 15.8935 9.45462 16.188 9.1634L16.8747 8.48451C18.3751 7.0011 18.3751 4.59244 16.8747 3.10904C15.379 1.63032 12.9576 1.63032 11.4619 3.10904L8.12529 6.40787C6.62489 7.89128 6.62489 10.2999 8.12529 11.7833C8.41985 12.0746 8.89471 12.0719 9.18594 11.7773C9.47716 11.4827 9.47445 11.0079 9.17989 10.7167C8.27336 9.82039 8.27336 8.37083 9.17989 7.47456L12.5165 4.17572Z" fill="#3B82F6"/>
                             <path d="M7.48346 15.8243C6.57217 16.7252 5.09119 16.7252 4.1799 15.8243C3.27337 14.928 3.27337 13.4784 4.1799 12.5822L4.86657 11.9033C5.16113 11.6121 5.16383 11.1372 4.87261 10.8426C4.58139 10.5481 4.10653 10.5454 3.81197 10.8366L3.1253 11.5155C1.6249 12.9989 1.6249 15.4076 3.1253 16.891C4.62096 18.3697 7.0424 18.3697 8.53806 16.891L11.8747 13.5921C13.3751 12.1087 13.3751 9.70006 11.8747 8.21666C11.5801 7.92544 11.1053 7.92814 10.814 8.2227C10.5228 8.51726 10.5255 8.99212 10.8201 9.28334C11.7266 10.1796 11.7266 11.6292 10.8201 12.5254L7.48346 15.8243Z" fill="#3B82F6"/>
                         </svg>
-                        Поделиться
+                        {UItext[language].share}
                     </button>
                 </div>
                 <div>
@@ -256,7 +304,7 @@ const StoryPage = () => {
                             key={`content-audio-${index}`} // Ensure unique key for each element
                             contentAudioURL={audioURL}
                             optionsIntroAudioURL={''}
-                            title={`Глава ${index + 1}`}
+                            title={`${UItext[language].chapter} ${index + 1}`}
                         />
                     ))}
 
@@ -265,7 +313,7 @@ const StoryPage = () => {
                             key={`last-content-audio-${Date.now()}`} // Use a unique key for the last element
                             contentAudioURL={lastContentAudio}
                             optionsIntroAudioURL={story.lastChapterAudios[0].URL}
-                            title={`Глава ${story.chapterContentAudios.length}`}
+                            title={`${UItext[language].chapter} ${story.chapterContentAudios.length}`}
                         />
                     )}
                     {!loading && (
@@ -273,19 +321,11 @@ const StoryPage = () => {
                             {!showLimitMessage && (
                                 <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
                                     {story.lastQuestion === ''
-                                        ? 'История завершена. У нас получилась отличная аудиокнига!\n Можешь поделиться ей с друзьями нажав на кнопку сверху :-)'
+                                        ? UItext[language].storyFinished
                                         : story.lastQuestion.split('\n')[0]}
                                 </div>
                             )}
-                            {showLimitMessage && (
-                                <div className="bg-white w-full rounded-lg p-2 whitespace-pre-line">
-                                    ⚠️📖⏳ Ваш лимит глав исчерпан. Купите пакет тут 🔗{' '}
-                                    <Link href="/subscription" className="text-blue-500">
-                                        https://story-hop.com/subscription
-                                    </Link>{' '}
-                                    ✅.
-                                </div>
-                            )}
+
                             {!shouldHideOptions && (
                                 <>
                                     {options.map((option, index) => (
@@ -306,7 +346,7 @@ const StoryPage = () => {
                                     onClick={continueStory}
                                     className="border border-blue-500 mt-4 bg-blue-500 w-full rounded-lg p-2 text-white flex justify-center"
                                 >
-                                    Продолжить 
+                                    {UItext[language].continue}
                                     <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M22.5862 18.9207C22.0149 19.2807 21.0654 19.2946 20.4655 18.9518C19.8656 18.609 19.8425 18.0393 20.4138 17.6794L28 12.9001L8.5 12.9001C7.67157 12.9001 7 12.4971 7 12.0001C7 11.503 7.67157 11.1001 8.5 11.1001L28 11.1001L20.4138 6.32074C19.8425 5.9608 19.8656 5.39112 20.4655 5.04833C21.0654 4.70553 22.0149 4.71942 22.5862 5.07936L32.5862 11.3794C33.1379 11.7269 33.1379 12.2732 32.5862 12.6207L22.5862 18.9207Z" fill="#FFF"/>
                                     </svg>
@@ -319,7 +359,7 @@ const StoryPage = () => {
                     {loading && (
                         <div className="flex flex-col items-center justify-center h-full">
                             <Spinner />
-                            <p className="mt-4 text-lg">Создаем продолжение истории. Подождите...</p>
+                            <p className="mt-4 text-lg">{UItext[language].creatingNextChapter}</p>
                         </div>
                     )}
                 </main>

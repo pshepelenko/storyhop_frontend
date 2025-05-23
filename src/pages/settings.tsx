@@ -6,13 +6,14 @@ export default function Subscription() {
   const [error, setError] = useState<string | null>(null);
   const [subscriptionPlan, setSubscriptionPlan] = useState<string>('Загрузка...');
   const [availableChapters, setAvailableChapters] = useState<number | null>(null);
+  const [language, setLanguage] = useState<string>(''); // State for language toggle
 
   const fetchSubscriptionInfo = async () => {
     try {
       const userId = localStorage.getItem('userId'); // Retrieve userId from localStorage
       if (!userId) {
-        setSubscriptionPlan('Стандарт')
-        setAvailableChapters(20)
+        setSubscriptionPlan('Стандарт');
+        setAvailableChapters(20);
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/subscription`, {
@@ -37,6 +38,7 @@ export default function Subscription() {
 
   useEffect(() => {
     fetchSubscriptionInfo();
+    setLanguage(localStorage.getItem('storyLanguage') || 'russian');
   }, []);
 
   const handlePayment = async () => {
@@ -80,6 +82,12 @@ export default function Subscription() {
     }
   };
 
+  const toggleLanguage = () => {
+    const newLanguage = language === 'russian' ? 'english' : 'russian';
+    setLanguage(newLanguage);
+    localStorage.setItem('storyLanguage', newLanguage); // Save the selected language to localStorage
+  };
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black min-h-screen w-full text-center max-w-lg font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-10 row-start-2 items-center pt-20 px-4">
@@ -90,8 +98,7 @@ export default function Subscription() {
           Назад
         </Link>
         <div className="w-full">
-          
-          <div className='font-bold text-center mb-10'> Информация о подписке</div>
+          <div className="font-bold text-center mb-10">Информация о подписке</div>
           <div>
             <div>Ваш тарифный план: {subscriptionPlan === 'free' || 'standart' ? 'Стандарт' : subscriptionPlan}</div>
             <div>Количество доступных глав: {availableChapters !== null ? availableChapters : 'Загрузка...'}</div>
@@ -108,6 +115,25 @@ export default function Subscription() {
               {loading ? 'Обработка...' : 'Оплатить'}
             </button>
             {error && <p className="text-red-500 mt-2">{error}</p>}
+          </div>
+          <div className="mt-10">
+            <p className="font-semibold mb-4">Язык историй</p>
+            <button
+              onClick={toggleLanguage}
+              className={`px-4 py-2 rounded-full ${
+                language === 'russian' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'
+              }`}
+            >
+              Русский
+            </button>
+            <button
+              onClick={toggleLanguage}
+              className={`px-4 py-2 rounded-full ml-2 ${
+                language === 'english' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'
+              }`}
+            >
+              English
+            </button>
           </div>
         </div>
       </main>

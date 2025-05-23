@@ -12,17 +12,25 @@ const NewStoryPage = () => {
     const [mainCharacterName, setMainCharacterName] = useState<string>(''); // State for main character name
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
+    const [language, setLanguage] = useState<keyof typeof worlds>('russian'); // State for language
+    const [commentPlaceholder, setCommentPlaceholder] = useState<string>('Дополнительных комментариев нет');
     const router = useRouter();
 
-    // Load the default main character name from localStorage
+    // Load the default main character name and language from localStorage
     useEffect(() => {
         const lastMainCharacterName = localStorage.getItem('lastMainCharacterName') || '';
+        const storyLanguage = (localStorage.getItem('storyLanguage') as 'russian' | 'english') || 'russian';
+        const commentPlaceholder =
+            storyLanguage === 'english' ? 'No additional comments' : 'Дополнительных комментариев нет';
+        setComments(commentPlaceholder);
+        setCommentPlaceholder(commentPlaceholder);
         setMainCharacterName(lastMainCharacterName);
+        setLanguage(storyLanguage);
     }, []);
 
     const handleCreateStory = async () => {
         if (!authorAge || !world || !mainCharacterName.trim()) {
-            setError('Пожалуйста, заполните информацию, необходимую для создания истории.');
+            setError(language === 'english' ? 'Please fill in all required fields.' : 'Пожалуйста, заполните все поля.');
             return;
         }
 
@@ -48,6 +56,7 @@ const NewStoryPage = () => {
                     comments: comments,
                     characterName: mainCharacterName, // Include main character name
                     requestId: requestId, // Include the requestId in the request body
+                    language: language,
                 }),
             });
 
@@ -70,12 +79,30 @@ const NewStoryPage = () => {
             router.push(`/stories/${data.storyId}`);
         } catch (error) {
             console.error('Error creating story:', error);
-            setError(`Ошибка при создании истории. С идентификатором ${requestId} и ошибкой ${error}`);
+            setError(
+                language === 'english'
+                    ? `Error creating story. Request ID: ${requestId}. Error: ${error}`
+                    : `Ошибка при создании истории. С идентификатором ${requestId} и ошибкой ${error}`
+            );
         } finally {
             setLoading(false);
         }
     };
 
+    // World descriptions based on language
+    const worlds = {
+        russian: [
+            '🔮🐉📜 Фэнтезийный мир, полный магии, мифических существ и древних секретов.',
+            '🚀👽🤖 Футуристический мир с передовыми технологиями, инопланетянами, космическими путешествиями и цивилизациями ИИ.',
+            '🏴‍☠️💰⚓Пиратский мир, полный потерянных сокровищ, кораблей-призраков и морских чудовищ.',
+        ],
+        english: [
+            '🔮🐉📜 A fantasy world full of magic, mythical creatures, and ancient secrets.',
+            '🚀👽🤖 A futuristic world with advanced technologies, aliens, space travel, and AI civilizations.',
+            '🏴‍☠️💰⚓ A pirate world full of lost treasures, ghost ships, and sea monsters.',
+        ],
+    };
+            
     return (
         <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 bg-white text-black font-[family-name:var(--font-geist-sans)]">
             <header className="flex w-full items-center">
@@ -87,55 +114,61 @@ const NewStoryPage = () => {
                         />
                     </svg>
                 </Link>
-                <h1 className="text-md w-full text-center px-2 text-lg mr-1">Создание новой истории</h1>
+                <h1 className="text-md w-full text-center px-2 text-lg mr-1">
+                    {language === 'english' ? 'Create a New Story' : 'Создание новой истории'}
+                </h1>
             </header>
             <div className="bg-gray-100 h-full mt-8 flex flex-col justify-between">
                 <div className="flex flex-col min-h-screen py-8 px-4 sm:p-20 font-[family-name:var(--font-geist-sans)]">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-full">
                             <Spinner />
-                            <p className="mt-4 text-lg">Начинаем историю. Подождите...</p>
+                            <p className="mt-4 text-lg">
+                                {language === 'english' ? 'Starting the story. Please wait...' : 'Начинаем историю. Подождите...'}
+                            </p>
                         </div>
                     ) : (
                         <>
                             <div className="mb-8">
-                                <div className="bg-white p-4 rounded-lg mb-4 font-semibold">Введите имя главного героя</div>
+                                <div className="bg-white p-4 rounded-lg mb-4 font-semibold">
+                                    {language === 'english' ? 'Enter the main character\'s name' : 'Введите имя главного героя'}
+                                </div>
                                 <input
                                     type="text"
-                                    placeholder="Имя главного героя"
+                                    placeholder={language === 'english' ? 'Main character\'s name' : 'Имя главного героя'}
                                     value={mainCharacterName}
                                     onChange={(e) => setMainCharacterName(e.target.value)}
                                     className="w-full p-4 rounded-lg border border-gray-200"
                                 />
                             </div>
                             <div className="mb-8">
-                                <div className="bg-white p-4 rounded-lg mb-4 font-semibold">Выберите мир, где происходит действие.</div>
+                                <div className="bg-white p-4 rounded-lg mb-4 font-semibold">
+                                    {language === 'english'
+                                        ? 'Choose the world where the story takes place.'
+                                        : 'Выберите мир, где происходит действие.'}
+                                </div>
                                 <div className="flex flex-col gap-4">
-                                    <button
-                                        className={`py-2 px-4 rounded-lg ${world === 'Фэнтезийный мир, полный магии, мифических существ и древних секретов.' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
-                                        onClick={() => setWorld('Фэнтезийный мир, полный магии, мифических существ и древних секретов.')}
-                                    >
-                                        🔮🐉📜 Мир, полный магии, мифических существ и древних секретов.
-                                    </button>
-                                    <button
-                                        className={`py-2 px-4 rounded-lg ${world === 'Футуристический мир с передовыми технологиями, инопланетянами, космическими путешествиями и цивилизациями ИИ' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
-                                        onClick={() => setWorld('Футуристический мир с передовыми технологиями, инопланетянами, космическими путешествиями и цивилизациями ИИ')}
-                                    >
-                                        🚀👽🤖 Мир будущего с передовыми технологиями, инопланетянами, космическими путешествиями и цивилизациями ИИ
-                                    </button>
-                                    <button
-                                        className={`py-2 px-4 rounded-lg ${world === 'Пиратский мир, полный потерянных сокровищ, кораблей-призраков и морских чудовищ' ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'}`}
-                                        onClick={() => setWorld('Пиратский мир, полный потерянных сокровищ, кораблей-призраков и морских чудовищ')}
-                                    >
-                                        🏴‍☠️💰⚓ Пиратский мир, полный потерянных сокровищ, кораблей-призраков и морских чудовищ
-                                    </button>
+                                    {worlds[language].map((description, index) => (
+                                        <button
+                                            key={index}
+                                            className={`py-2 px-4 rounded-lg ${
+                                                world === description ? 'bg-blue-500 text-white' : 'bg-white border border-gray-200'
+                                            }`}
+                                            onClick={() => setWorld(description)}
+                                        >
+                                            {description}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                             <div className="mb-2">
-                                <div className="bg-white p-4 rounded-lg mb-4 font-semibold">Дополнительные комментарии</div>
+                                <div className="bg-white p-4 rounded-lg mb-4 font-semibold">
+                                    {language === 'english' ? 'Additional comments' : 'Дополнительные комментарии'}
+                                </div>
                                 <textarea
                                     className="w-full p-4 rounded-lg border border-gray-200"
                                     rows={3}
+                                    placeholder={commentPlaceholder}
                                     value={comments}
                                     onChange={(e) => setComments(e.target.value)}
                                 />
@@ -145,7 +178,7 @@ const NewStoryPage = () => {
                                 className="bg-blue-500 hover:bg-blue-700 text-white py-4 px-4 mt-4 rounded-lg"
                                 onClick={handleCreateStory}
                             >
-                                Создать
+                                {language === 'english' ? 'Create' : 'Создать'}
                             </button>
                         </>
                     )}
