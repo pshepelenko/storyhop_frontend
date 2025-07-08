@@ -2,6 +2,63 @@ import { useState, useEffect } from 'react';
 import ChoicesChart from '../components/choices-chart';
 import Link from 'next/link';
 
+const UItext = {
+  russian: {
+    back: 'Назад',
+    settingsTab: 'Настройки',
+    chartTab: 'Ответы',
+    loading: 'Загрузка настроек...',
+    error: 'Не удалось загрузить настройки пользователя.',
+    settings: 'Настройки',
+    childNameLabel: 'Имя ребенка (или детей)',
+    childNamePlaceholder: 'Пример: Оля и Аня',
+    narrativesLabel: 'Ценности для включения в истории',
+    addNarrativePlaceholder: 'Добавить нарратив',
+    addNarrative: 'Добавить',
+    subchallengesLabel: 'Сложная ситуация для проработки',
+    subchallengesList: 'Список вызовов для ребенка, которые мы будем прорабатывать в историях.',
+    addSubchallengePlaceholder: 'Добавить вызов',
+    addSubchallenge: 'Добавить',
+    describeSituation: 'Впишите ситуацию, которую хотите проработать с ребенком. Например: "Развод родителей" или "Переезд в другую страну". Мы трансформируем ее в вызовы для ребенка, которые будем прорабатывать в историях, при этом их сюжет не будет однообразным.',
+    describeSituationPlaceholder: 'Опишите сложную ситуацию',
+    send: 'Отправить',
+    sending: 'Отправка...',
+    save: 'Сохранить изменения',
+    saving: 'Сохранение...',
+    saveSuccess: 'Настройки успешно сохранены!',
+    saveError: 'Не удалось сохранить настройки. Попробуйте еще раз.',
+    sendError: 'Не удалось отправить сложную ситуацию. Попробуйте еще раз.',
+    chart: 'График',
+  },
+  english: {
+    back: 'Back',
+    settingsTab: 'Settings',
+    chartTab: 'Answers',
+    loading: 'Loading settings...',
+    error: 'Failed to load user settings.',
+    settings: 'Settings',
+    childNameLabel: "Child's name(s)",
+    childNamePlaceholder: 'Example: Olya and Anya',
+    narrativesLabel: 'Values to include in stories',
+    addNarrativePlaceholder: 'Add value',
+    addNarrative: 'Add',
+    subchallengesLabel: 'Difficult situation to work through',
+    subchallengesList: 'List of challenges for the child that we will work through in the stories.',
+    addSubchallengePlaceholder: 'Add challenge',
+    addSubchallenge: 'Add',
+    describeSituation: 'Enter a situation you want to work through with your child. For example: "Parents’ divorce" or "Moving to another country". We will transform it into challenges for the child to work through in the stories, and the plot will not be monotonous.',
+    describeSituationPlaceholder: 'Describe a difficult situation',
+    send: 'Send',
+    sending: 'Sending...',
+    save: 'Save changes',
+    saving: 'Saving...',
+    saveSuccess: 'Settings saved successfully!',
+    saveError: 'Failed to save settings. Please try again.',
+    sendError: 'Failed to send the situation. Please try again.',
+    chart: 'Chart',
+  },
+};
+
 const ParentSpace = () => {
   const [childName, setChildName] = useState('');
   const [narratives, setNarratives] = useState<string[]>([]);
@@ -12,10 +69,13 @@ const ParentSpace = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmittingChallenge, setIsSubmittingChallenge] = useState(false);
-  const [isSavingSettings, setIsSavingSettings] = useState(false); // New state for saving settings
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [language, setLanguage] = useState<'russian' | 'english'>('english');
 
-  // Fetch user settings from the backend
   useEffect(() => {
+    const lang = (localStorage.getItem('storyLanguage') as 'russian' | 'english') || 'english';
+    setLanguage(lang);
+
     const fetchUserSettings = async () => {
       setLoading(true);
       setError(null);
@@ -42,7 +102,7 @@ const ParentSpace = () => {
         setSubchallenges(data.subchallenges || []);
       } catch (err) {
         console.error('Error fetching user settings:', err);
-        setError('Не удалось загрузить настройки пользователя.');
+        setError(UItext[lang].error);
       } finally {
         setLoading(false);
       }
@@ -73,7 +133,6 @@ const ParentSpace = () => {
     setSubchallenges(subchallenges.filter((_, i) => i !== index));
   };
 
-  // Function to send a challenge to the server
   const sendChallenge = async (challenge: string) => {
     setIsSubmittingChallenge(true);
     try {
@@ -96,13 +155,12 @@ const ParentSpace = () => {
       setNewSubchallenge('');
     } catch (error) {
       console.error('Error sending challenge:', error);
-      alert('Не удалось отправить сложную ситуацию. Попробуйте еще раз.');
+      alert(UItext[language].sendError);
     } finally {
       setIsSubmittingChallenge(false);
     }
   };
 
-  // Function to save user settings
   const saveUserSettings = async () => {
     setIsSavingSettings(true);
     try {
@@ -126,10 +184,10 @@ const ParentSpace = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      alert('Настройки успешно сохранены!');
+      alert(UItext[language].saveSuccess);
     } catch (error) {
       console.error('Error saving user settings:', error);
-      alert('Не удалось сохранить настройки. Попробуйте еще раз.');
+      alert(UItext[language].saveError);
     } finally {
       setIsSavingSettings(false);
       localStorage.setItem('lastMainCharacterName', childName);
@@ -145,35 +203,35 @@ const ParentSpace = () => {
             fill="#3B82F6"
           />
         </svg>
-        Назад
+        {UItext[language].back}
       </Link>
       <div className="flex justify-center mb-10">
         <button
           className={`px-4 py-2 rounded-l-lg ${activeTab === 'settings' ? 'bg-blue-500 text-white' : 'bg-white text-blue-500'}`}
           onClick={() => setActiveTab('settings')}
         >
-          Настройки
+          {UItext[language].settingsTab}
         </button>
         <button
           className={`px-4 py-2 rounded-r-lg ${activeTab === 'chart' ? 'bg-blue-500 text-white' : 'bg-white text-blue-500'}`}
           onClick={() => setActiveTab('chart')}
         >
-          Ответы
+          {UItext[language].chartTab}
         </button>
       </div>
 
-      {loading && <p>Загрузка настроек...</p>}
+      {loading && <p>{UItext[language].loading}</p>}
       {error && <p className="text-red-500">{error}</p>}
 
       {!loading && !error && activeTab === 'settings' && (
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold mb-4">Настройки</h2>
+          <h2 className="text-xl font-bold mb-4">{UItext[language].settings}</h2>
 
           <div className="mb-4">
-            <label className="block font-semibold mb-2">Имя ребенка (или детей)</label>
+            <label className="block font-semibold mb-2">{UItext[language].childNameLabel}</label>
             <input
               type="text"
-              placeholder="Пример: Оля и Аня"
+              placeholder={UItext[language].childNamePlaceholder}
               value={childName}
               onChange={(e) => setChildName(e.target.value)}
               className="w-full p-2 border rounded"
@@ -181,7 +239,7 @@ const ParentSpace = () => {
           </div>
 
           <div className="mb-4">
-            <label className="block font-semibold mb-2">Ценности для включения в истории</label>
+            <label className="block font-semibold mb-2">{UItext[language].narrativesLabel}</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {narratives.map((narrative, index) => (
                 <span
@@ -198,24 +256,24 @@ const ParentSpace = () => {
             <div className="flex gap-2  mt-4 ">
               <input
                 type="text"
-                placeholder="Добавить нарратив"
+                placeholder={UItext[language].addNarrativePlaceholder}
                 value={newNarrative}
                 onChange={(e) => setNewNarrative(e.target.value)}
                 className="flex-grow p-2 border rounded"
               />
               <button onClick={addNarrative} className="bg-blue-500 text-white px-4 py-2 rounded">
-                Добавить
+                {UItext[language].addNarrative}
               </button>
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block font-semibold mb-2">Сложная ситуация для проработки</label>
+            <label className="block font-semibold mb-2">{UItext[language].subchallengesLabel}</label>
 
             {subchallenges.length > 0 ? (
               <>
                 <div>
-                  Список вызовов для ребенка, которые мы будем прорабатывать в историях.
+                  {UItext[language].subchallengesList}
                 </div>
                 <div className="flex flex-wrap gap-2 mb-2 mt-4">
                   {subchallenges.map((subchallenge, index) => (
@@ -233,26 +291,25 @@ const ParentSpace = () => {
                 <div className="flex gap-2 mt-4">
                   <input
                     type="text"
-                    placeholder="Добавить вызов"
+                    placeholder={UItext[language].addSubchallengePlaceholder}
                     value={newSubchallenge}
                     onChange={(e) => setNewSubchallenge(e.target.value)}
                     className="flex-grow p-2 border rounded"
                   />
                   <button onClick={addSubchallenge} className="bg-blue-500 text-white px-4 py-2 rounded">
-                    Добавить
+                    {UItext[language].addSubchallenge}
                   </button>
                 </div>
               </>
             ) : (
               <div>
                 <div>
-                  Впишите ситуацию, которую хотите проработать с ребенком. Например: &quot;Развод родителей&quot; или &quot;Переезд в другую страну&quot;. Мы
-                  трансформируем ее в вызовы для ребенка, которые будем прорабатывать в историях, при этом их сюжет не будет однообразным.
+                  {UItext[language].describeSituation}
                 </div>
                 <div className="flex gap-2 mt-4">
                   <input
                     type="text"
-                    placeholder="Опишите сложную ситуацию"
+                    placeholder={UItext[language].describeSituationPlaceholder}
                     value={newSubchallenge}
                     onChange={(e) => setNewSubchallenge(e.target.value)}
                     className="flex-grow p-2 border rounded"
@@ -268,7 +325,7 @@ const ParentSpace = () => {
                     }`}
                     disabled={isSubmittingChallenge}
                   >
-                    {isSubmittingChallenge ? 'Отправка...' : 'Отправить'}
+                    {isSubmittingChallenge ? UItext[language].sending : UItext[language].send}
                   </button>
                 </div>
               </div>
@@ -282,7 +339,7 @@ const ParentSpace = () => {
               }`}
               disabled={isSavingSettings}
             >
-              {isSavingSettings ? 'Сохранение...' : 'Сохранить изменения'}
+              {isSavingSettings ? UItext[language].saving : UItext[language].save}
             </button>
           </div>
         </div>
@@ -290,7 +347,7 @@ const ParentSpace = () => {
 
       {activeTab === 'chart' && (
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold mb-4">График</h2>
+          <h2 className="text-xl font-bold mb-4">{UItext[language].chart}</h2>
           <ChoicesChart />
         </div>
       )}
