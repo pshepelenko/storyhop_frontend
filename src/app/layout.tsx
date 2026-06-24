@@ -1,16 +1,4 @@
-// import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 // Remove the metadata export
 // export const metadata: Metadata = {
@@ -24,7 +12,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black flex items-center justify-center min-h-screen`}>
+    <div
+      className="antialiased bg-sh-background text-sh-foreground flex flex-col min-h-screen w-full"
+      style={{
+        ['--font-geist-sans' as string]: '"Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif',
+        ['--font-geist-mono' as string]: '"SFMono-Regular", "Consolas", monospace',
+        ['--font-story' as string]: 'Georgia, "Lora", "Times New Roman", serif',
+      }}
+    >
       {children}
     </div>
   );

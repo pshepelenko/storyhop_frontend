@@ -1,0 +1,47 @@
+export const LEARNING_THEMES = [
+  'Teamwork',
+  'Listening',
+  'Confidence',
+  'Emotions',
+  'Problem solving',
+  'Kindness',
+  'Respect',
+  'Sharing',
+  'Courage',
+  'Friendship',
+  'Patience',
+  'Honesty',
+  'Empathy',
+  'Responsibility',
+  'Curiosity',
+  'Gratitude',
+  'Self-control',
+  'Helping others',
+  'Including everyone',
+  'Trying again',
+];
+
+export const TONE_PRESETS = [
+  'Adventurous',
+  'Warm',
+  'Funny',
+  'Calm',
+  'Exciting',
+  'Magical',
+  'Inspirational',
+];
+
+export const VOCABULARY_PRESETS = [
+  'Nature',
+  'Friends',
+  'School',
+  'Feelings',
+  'Science',
+  'Animals',
+  'Places',
+  'Actions',
+  'Home',
+  'Bravery',
+  'Help',
+  'Listen',
+];

@@ -1,179 +1,168 @@
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import AppShell from '@/components/layout/AppShell';
+import { Button, Card, SettingsRow } from '@/components/ui';
+import { getChannelUserId, getUiLanguage, setUiLanguage } from '@/lib/ui-language';
 
-export default function Subscription() {
-  const UItext = {
-    russian: {
-      back: 'Назад',
-      subscriptionInfo: 'Информация о подписке',
-      plan: 'Ваш тарифный план',
-      standard: 'Стандарт',
-      availableChapters: 'Количество доступных глав',
-      addChapters: 'Добавить 200 глав',
-      price: 'Цена 1500 руб',
-      inn: 'Самозанятый Шепеленко П.А. ИНН 770170701945',
-      pay: 'Оплатить',
-      processing: 'Обработка...',
-      language: 'Язык историй',
-      russian: 'Русский',
-      english: 'English',
-      errorFetch: 'Ошибка при загрузке информации о подписке.',
-      errorPayment: 'Ошибка при инициации оплаты. Попробуйте снова.',
-    },
-    english: {
-      back: 'Back',
-      subscriptionInfo: 'Subscription Information',
-      plan: 'Your plan',
-      standard: 'Standard',
-      availableChapters: 'Available chapters',
-      addChapters: 'Add 200 chapters',
-      price: 'Price: 1500 RUB',
-      inn: 'Self-employed: Shepelenko P.A. INN 770170701945',
-      pay: 'Pay',
-      processing: 'Processing...',
-      language: 'Story language',
-      russian: 'Russian',
-      english: 'English',
-      errorFetch: 'Error loading subscription info.',
-      errorPayment: 'Error initiating payment. Please try again.',
-    }
-  };
+const SOUND_KEY = 'storyhop_soundEffects';
+const BGM_KEY = 'storyhop_bgm';
+const AUTOPLAY_KEY = 'storyhop_autoplayNext';
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [subscriptionPlan, setSubscriptionPlan] = useState<string>('Загрузка...');
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`w-11 h-6 rounded-full transition-colors ${checked ? 'bg-sh-forest' : 'bg-sh-border'}`}
+    >
+      <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform mx-0.5 ${checked ? 'translate-x-5' : ''}`} />
+    </button>
+  );
+}
+
+export default function SettingsPage() {
+  const [language, setLanguage] = useState<'english' | 'russian'>(getUiLanguage());
+  const [childName, setChildName] = useState('');
+  const [childAge, setChildAge] = useState('8');
+  const [languageLevel, setLanguageLevel] = useState('A1');
+  const [ttsVoice, setTtsVoice] = useState('bm_lewis');
+  const [subscriptionPlan, setSubscriptionPlan] = useState('Standard');
   const [availableChapters, setAvailableChapters] = useState<number | null>(null);
-  const [language, setLanguage] = useState<'russian' | 'english'>('english');
-
-  const fetchSubscriptionInfo = async () => {
-    try {
-      const userId = localStorage.getItem('userId');
-      if (!userId) {
-        setSubscriptionPlan('Стандарт');
-        setAvailableChapters(20);
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/subscription`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setSubscriptionPlan(data.plan || 'Неизвестно');
-      setAvailableChapters(data.limit || 0);
-    } catch (err) {
-      console.error('Error fetching subscription info:', err);
-      setError(UItext[language].errorFetch);
-    }
-  };
+  const [hasSeasons, setHasSeasons] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+  const [soundEffects, setSoundEffects] = useState(true);
+  const [bgm, setBgm] = useState(false);
+  const [autoplayNext, setAutoplayNext] = useState(true);
 
   useEffect(() => {
-    fetchSubscriptionInfo();
-    setLanguage((localStorage.getItem('storyLanguage') as 'russian' | 'english') || 'english');
-    // eslint-disable-next-line
+    setSoundEffects(localStorage.getItem(SOUND_KEY) !== 'false');
+    setBgm(localStorage.getItem(BGM_KEY) === 'true');
+    setAutoplayNext(localStorage.getItem(AUTOPLAY_KEY) !== 'false');
+    setTtsVoice(localStorage.getItem('ttsVoice') || 'bm_lewis');
+
+    const load = async () => {
+      const userId = getChannelUserId();
+      try {
+        const [settingsRes, homeRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/settings`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/home-summary`),
+        ]);
+        if (settingsRes.ok) {
+          const s = await settingsRes.json();
+          localStorage.setItem('userId', s.userId);
+          setChildName(s.childName || '');
+        }
+        if (homeRes.ok) {
+          const h = await homeRes.json();
+          setHasSeasons(h.hasSeasons);
+          if (h.seasons?.[0]) setChildName((n) => n || h.seasons[0].childName);
+        }
+        const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/subscription`);
+        if (subRes.ok) {
+          const sub = await subRes.json();
+          setSubscriptionPlan(sub.plan || 'Standard');
+          setAvailableChapters(sub.limit ?? 20);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    load();
   }, []);
 
-  const handlePayment = async () => {
-    setLoading(true);
-    setError(null);
-
+  const saveSettings = async () => {
+    setUiLanguage(language);
+    localStorage.setItem('uiLanguage', language);
+    localStorage.setItem('ttsVoice', ttsVoice);
+    localStorage.setItem(SOUND_KEY, String(soundEffects));
+    localStorage.setItem(BGM_KEY, String(bgm));
+    localStorage.setItem(AUTOPLAY_KEY, String(autoplayNext));
+    const userId = getChannelUserId();
     try {
-      const userId = localStorage.getItem('userId');
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/purchase`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/settings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userId,
-          channel: 'web-app',
-          plan: 'standard',
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ childName, narratives: [], subchallenges: [] }),
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('Payment URL not found in the response');
-      }
-    } catch (err) {
-      console.error('Error initiating payment:', err);
-      setError(UItext[language].errorPayment);
-    } finally {
-      setLoading(false);
+      setSaveMsg('Settings saved.');
+    } catch {
+      setSaveMsg('Could not save settings.');
     }
-  };
-
-  const toggleLanguage = () => {
-    const newLanguage = language === 'russian' ? 'english' : 'russian';
-    setLanguage(newLanguage);
-    localStorage.setItem('storyLanguage', newLanguage);
   };
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] bg-white text-black min-h-screen w-full text-center max-w-lg font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-10 row-start-2 items-center pt-20 px-4">
-        <Link href="/" className="flex w-full text-blue-500 items-center">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8.7069 4.23276C8.99256 3.93281 9.46729 3.92123 9.76724 4.2069C10.0672 4.49256 10.0788 4.9673 9.7931 5.26724L6 9.25H15.75C16.1642 9.25 16.5 9.58579 16.5 10C16.5 10.4142 16.1642 10.75 15.75 10.75H6L9.7931 14.7328C10.0788 15.0327 10.0672 15.5074 9.76724 15.7931C9.46729 16.0788 8.99256 16.0672 8.7069 15.7672L3.7069 10.5172C3.43103 10.2276 3.43103 9.77242 3.7069 9.48276L8.7069 4.23276Z" fill="#3B82F6" />
-          </svg>
-          {UItext[language].back}
-        </Link>
-        <div className="w-full">
-          <div className="font-bold text-center mb-10">{UItext[language].subscriptionInfo}</div>
-          <div>
-            <div>
-              {UItext[language].plan}: {subscriptionPlan === 'free' || subscriptionPlan === 'standart' ? UItext[language].standard : subscriptionPlan}
-            </div>
-            <div>
-              {UItext[language].availableChapters}: {availableChapters !== null ? availableChapters : '...'}
-            </div>
-          </div>
-          <div className="border mt-4 p-2 rounded-lg flex flex-col items-center justify-center gap-2">
-            <p>{UItext[language].addChapters}</p>
-            <p>{UItext[language].price}</p>
-            <p className="text-gray-400 text-xs">{UItext[language].inn}</p>
-            <button
-              onClick={handlePayment}
-              className="bg-blue-500 text-white p-4 rounded-full"
-              disabled={loading}
+    <AppShell showBottomNav hasSeasons={hasSeasons} maxWidth="default">
+      <h1 className="text-xl font-bold mb-6 font-story">Settings</h1>
+
+      <Card padding="none" className="overflow-hidden mb-4">
+        <SettingsRow
+          label="Interface language"
+          description="Story language is always English"
+          border
+          trailing={
+            <select
+              className="border border-sh-border rounded-sh text-sm px-2 py-1"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as 'english' | 'russian')}
             >
-              {loading ? UItext[language].processing : UItext[language].pay}
-            </button>
-            {error && <p className="text-red-500 mt-2">{error}</p>}
-          </div>
-          <div className="mt-10">
-            <p className="font-semibold mb-4">{UItext[language].language}</p>
-            <button
-              onClick={toggleLanguage}
-              className={`px-4 py-2 rounded-full ${language === 'russian' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
-            >
-              {UItext[language].russian}
-            </button>
-            <button
-              onClick={toggleLanguage}
-              className={`px-4 py-2 rounded-full ml-2 ${language === 'english' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
-            >
-              {UItext[language].english}
-            </button>
-          </div>
-        </div>
-      </main>
-    </div>
+              <option value="english">English</option>
+              <option value="russian">Russian</option>
+            </select>
+          }
+        />
+        <SettingsRow label="Child profile" description={`${childName || 'Not set'} · age ${childAge} · ${languageLevel}`} href="/seasons/new" />
+        <SettingsRow label="Audio voice" description={ttsVoice} border={false} />
+      </Card>
+
+      <Card padding="none" className="overflow-hidden mb-4">
+        <div className="px-4 py-3 border-b border-sh-border text-sm font-semibold">Playback</div>
+        <SettingsRow
+          label="Sound effects"
+          trailing={<Toggle checked={soundEffects} onChange={setSoundEffects} />}
+        />
+        <SettingsRow label="Background music" trailing={<Toggle checked={bgm} onChange={setBgm} />} />
+        <SettingsRow
+          label="Auto-play next episode"
+          border={false}
+          trailing={<Toggle checked={autoplayNext} onChange={setAutoplayNext} />}
+        />
+      </Card>
+
+      <Card padding="none" className="overflow-hidden mb-4">
+        <SettingsRow label="Parent controls" description="Child-safe: no open chat, no ads" />
+        <SettingsRow label="Privacy" description="Story data used only to personalize your season" border={false} />
+      </Card>
+
+      <Card padding="none" className="overflow-hidden mb-4">
+        <SettingsRow label="Invite a friend" description="50% off + 50 crystals" href="/referral" />
+        <SettingsRow label="Billing" description={`${subscriptionPlan} · ${availableChapters ?? '—'} chapters`} border={false} />
+      </Card>
+
+      <details className="mb-4">
+        <summary className="text-sm text-sh-forest cursor-pointer">Edit child profile details</summary>
+        <Card padding="md" className="mt-2 space-y-3">
+          <label className="block text-sm">
+            Name
+            <input className="mt-1 w-full border border-sh-border rounded-sh px-3 py-2" value={childName} onChange={(e) => setChildName(e.target.value)} />
+          </label>
+          <label className="block text-sm">
+            Age
+            <input className="mt-1 w-full border border-sh-border rounded-sh px-3 py-2" value={childAge} onChange={(e) => setChildAge(e.target.value)} />
+          </label>
+          <label className="block text-sm">
+            Voice
+            <select className="mt-1 w-full border border-sh-border rounded-sh px-3 py-2" value={ttsVoice} onChange={(e) => setTtsVoice(e.target.value)}>
+              <option value="bm_lewis">Lewis (UK)</option>
+              <option value="af_sarah">Sarah (US)</option>
+              <option value="af_heart">Heart (US)</option>
+            </select>
+          </label>
+        </Card>
+      </details>
+
+      <Button onClick={saveSettings} fullWidth>Save changes</Button>
+      {saveMsg && <p className="text-sm text-center text-sh-forest mt-2">{saveMsg}</p>}
+    </AppShell>
   );
 }

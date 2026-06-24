@@ -9,7 +9,7 @@ interface Story {
 export default function StoriesListUnit({ story }: { story: Story }) {
     return (
         <div className="flex h-48 justify-start bg-white mx-2 mb-4 my-2 rounded-lg px-2 py-2">
-            <img src={story.coverURL} className="w-1/2 mr-2"/>
+            <img src={story.coverURL} alt={story.title} className="w-1/2 mr-2"/>
             <div className="w-full y-full flex justify-around flex-col">
                 <h3 className="font-bold "> {story.title}</h3>
                 <Link href={"/stories/" + story.storyId} className="text-blue-500 text-sm py-1 border border-2 p-2 rounded-lg border-blue-500 flex">
