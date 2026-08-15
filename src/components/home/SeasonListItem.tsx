@@ -6,7 +6,6 @@ type SeasonListItemProps = {
   seasonId: string;
   seasonLabel: string;
   subtitle: string;
-  progressPercent: number;
   locked?: boolean;
   episodeLabel?: string;
 };
@@ -15,7 +14,6 @@ export default function SeasonListItem({
   seasonId,
   seasonLabel,
   subtitle,
-  progressPercent,
   locked = false,
   episodeLabel,
 }: SeasonListItemProps) {
@@ -54,11 +52,6 @@ export default function SeasonListItem({
         </div>
         <p className="text-xs text-sh-muted truncate">{subtitle}</p>
         {episodeLabel && <p className="text-[11px] text-sh-muted mt-0.5">{episodeLabel}</p>}
-        {!locked && (
-          <div className="h-1 rounded-full bg-[#e8e4dc] mt-2 overflow-hidden">
-            <div className="h-full bg-sh-forest rounded-full" style={{ width: `${progressPercent}%` }} />
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,168 +1,96 @@
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
-import { Button, Card, SettingsRow } from '@/components/ui';
-import { getChannelUserId, getUiLanguage, setUiLanguage } from '@/lib/ui-language';
+import { Button, Card, SegmentedControl, SettingsRow } from '@/components/ui';
+import { getUiLanguage, setUiLanguage, type UiLanguage } from '@/lib/ui-language';
+import { apiFetchAsGuest } from '@/lib/api-client';
 
-const SOUND_KEY = 'storyhop_soundEffects';
-const BGM_KEY = 'storyhop_bgm';
-const AUTOPLAY_KEY = 'storyhop_autoplayNext';
+type SettingsData = {
+  profile: { complete: boolean; displayName: string; age: number; gender: 'girl' | 'boy'; englishLevel: 'A1' | 'A2' | 'B1' } | null;
+  preferences: { interfaceLanguage: UiLanguage; playbackRate: number; readingTextSize: 'small' | 'medium' | 'large' };
+  account: { accountType: 'guest' | 'account'; email: string | null };
+};
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`w-11 h-6 rounded-full transition-colors ${checked ? 'bg-sh-forest' : 'bg-sh-border'}`}
-    >
-      <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform mx-0.5 ${checked ? 'translate-x-5' : ''}`} />
-    </button>
-  );
-}
+const sectionTitle = 'px-4 pt-4 pb-2 text-sm font-bold text-sh-forest';
 
 export default function SettingsPage() {
-  const [language, setLanguage] = useState<'english' | 'russian'>(getUiLanguage());
-  const [childName, setChildName] = useState('');
-  const [childAge, setChildAge] = useState('8');
-  const [languageLevel, setLanguageLevel] = useState('A1');
-  const [ttsVoice, setTtsVoice] = useState('bm_lewis');
-  const [subscriptionPlan, setSubscriptionPlan] = useState('Standard');
-  const [availableChapters, setAvailableChapters] = useState<number | null>(null);
-  const [hasSeasons, setHasSeasons] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
-  const [soundEffects, setSoundEffects] = useState(true);
-  const [bgm, setBgm] = useState(false);
-  const [autoplayNext, setAutoplayNext] = useState(true);
+  const [data, setData] = useState<SettingsData | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setSoundEffects(localStorage.getItem(SOUND_KEY) !== 'false');
-    setBgm(localStorage.getItem(BGM_KEY) === 'true');
-    setAutoplayNext(localStorage.getItem(AUTOPLAY_KEY) !== 'false');
-    setTtsVoice(localStorage.getItem('ttsVoice') || 'bm_lewis');
-
-    const load = async () => {
-      const userId = getChannelUserId();
-      try {
-        const [settingsRes, homeRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/settings`),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/home-summary`),
-        ]);
-        if (settingsRes.ok) {
-          const s = await settingsRes.json();
-          localStorage.setItem('userId', s.userId);
-          setChildName(s.childName || '');
-        }
-        if (homeRes.ok) {
-          const h = await homeRes.json();
-          setHasSeasons(h.hasSeasons);
-          if (h.seasons?.[0]) setChildName((n) => n || h.seasons[0].childName);
-        }
-        const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/subscription`);
-        if (subRes.ok) {
-          const sub = await subRes.json();
-          setSubscriptionPlan(sub.plan || 'Standard');
-          setAvailableChapters(sub.limit ?? 20);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    load();
+    void apiFetchAsGuest('/users/me/settings').then(async (response) => {
+      if (!response.ok) throw new Error('Settings unavailable');
+      setData(await response.json());
+    }).catch(() => setData(null));
   }, []);
 
-  const saveSettings = async () => {
-    setUiLanguage(language);
-    localStorage.setItem('uiLanguage', language);
-    localStorage.setItem('ttsVoice', ttsVoice);
-    localStorage.setItem(SOUND_KEY, String(soundEffects));
-    localStorage.setItem(BGM_KEY, String(bgm));
-    localStorage.setItem(AUTOPLAY_KEY, String(autoplayNext));
-    const userId = getChannelUserId();
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stories/users/${userId}/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ childName, narratives: [], subchallenges: [] }),
-      });
-      setSaveMsg('Settings saved.');
-    } catch {
-      setSaveMsg('Could not save settings.');
+  const updatePreferences = async (next: Partial<SettingsData['preferences']>) => {
+    if (!data || saving) return;
+    setSaving(true);
+    const response = await apiFetchAsGuest('/users/me/preferences', { method: 'PATCH', body: JSON.stringify(next) });
+    setSaving(false);
+    if (!response.ok) return;
+    const preferences = await response.json();
+    setData((current) => current ? { ...current, preferences } : current);
+    if (preferences.interfaceLanguage) setUiLanguage(preferences.interfaceLanguage);
+    if (preferences.playbackRate) {
+      localStorage.setItem('storyhop_playbackRate', String(preferences.playbackRate));
+      window.dispatchEvent(new CustomEvent('storyhop:audio-preference-change'));
+    }
+    if (preferences.readingTextSize) {
+      localStorage.setItem('storyhop_readingTextSize', preferences.readingTextSize);
+      window.dispatchEvent(new CustomEvent('storyhop:reading-preference-change'));
     }
   };
 
+  const profile = data?.profile;
+  const preferences = data?.preferences || { interfaceLanguage: getUiLanguage(), playbackRate: 1, readingTextSize: 'medium' as const };
+  const hasSeasons = Boolean(profile?.complete);
+
   return (
-    <AppShell showBottomNav hasSeasons={hasSeasons} maxWidth="default">
-      <h1 className="text-xl font-bold mb-6 font-story">Settings</h1>
+    <AppShell showBottomNav hasSeasons={hasSeasons} shellVariant="framed" maxWidth="wide">
+      <div className="mx-auto max-w-5xl py-2 sm:py-6">
+        <h1 className="font-story text-3xl font-bold text-sh-foreground">Настройки</h1>
+        <p className="mt-2 text-sm text-sh-muted">Профиль ребёнка, чтение и аккаунт.</p>
+        {!data ? <p className="mt-8 text-sm text-sh-muted">Загружаем настройки...</p> : <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <Card padding="none" className="ph-sensitive overflow-hidden">
+            <div className={sectionTitle}>Профиль ребёнка</div>
+            <SettingsRow label={profile?.displayName || 'Профиль ещё не заполнен'} description={profile?.complete ? `${profile.age} лет · ${profile.gender === 'girl' ? 'девочка' : 'мальчик'} · ${profile.englishLevel}` : 'Заполните профиль перед созданием сезона'} href="/settings/child-profile" />
+            <div className="px-4 pb-4 text-xs text-sh-muted">Изменения будут применяться только к новым сезонам.</div>
+          </Card>
 
-      <Card padding="none" className="overflow-hidden mb-4">
-        <SettingsRow
-          label="Interface language"
-          description="Story language is always English"
-          border
-          trailing={
-            <select
-              className="border border-sh-border rounded-sh text-sm px-2 py-1"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as 'english' | 'russian')}
-            >
-              <option value="english">English</option>
-              <option value="russian">Russian</option>
-            </select>
-          }
-        />
-        <SettingsRow label="Child profile" description={`${childName || 'Not set'} · age ${childAge} · ${languageLevel}`} href="/seasons/new" />
-        <SettingsRow label="Audio voice" description={ttsVoice} border={false} />
-      </Card>
+          <Card padding="none" className="overflow-hidden">
+            <div className={sectionTitle}>Чтение</div>
+            <div className="px-4 pb-4 space-y-4">
+              <section>
+                <p className="mb-2 text-sm font-medium text-sh-foreground">Скорость аудио</p>
+                <SegmentedControl ariaLabel="Скорость аудио" value={String(preferences.playbackRate)} onChange={(value) => void updatePreferences({ playbackRate: Number(value) })} segments={[{ value: '0.9', label: 'Медленнее', description: '0.9×' }, { value: '1', label: 'Обычная', description: '1×' }, { value: '1.15', label: 'Быстрее', description: '1.15×' }]} />
+              </section>
+              <section>
+                <p className="mb-2 text-sm font-medium text-sh-foreground">Размер текста</p>
+                <SegmentedControl ariaLabel="Размер текста" value={preferences.readingTextSize} onChange={(value) => void updatePreferences({ readingTextSize: value as 'small' | 'medium' | 'large' })} segments={[{ value: 'small', label: 'Маленький' }, { value: 'medium', label: 'Средний' }, { value: 'large', label: 'Крупный' }]} />
+              </section>
+            </div>
+          </Card>
 
-      <Card padding="none" className="overflow-hidden mb-4">
-        <div className="px-4 py-3 border-b border-sh-border text-sm font-semibold">Playback</div>
-        <SettingsRow
-          label="Sound effects"
-          trailing={<Toggle checked={soundEffects} onChange={setSoundEffects} />}
-        />
-        <SettingsRow label="Background music" trailing={<Toggle checked={bgm} onChange={setBgm} />} />
-        <SettingsRow
-          label="Auto-play next episode"
-          border={false}
-          trailing={<Toggle checked={autoplayNext} onChange={setAutoplayNext} />}
-        />
-      </Card>
+          <Card padding="none" className="overflow-hidden">
+            <div className={sectionTitle}>Приложение и аккаунт</div>
+            <div className="px-4 pb-4 space-y-4">
+              <section>
+                <p className="mb-2 text-sm font-medium text-sh-foreground">Язык интерфейса</p>
+                <SegmentedControl ariaLabel="Язык интерфейса" value={preferences.interfaceLanguage} onChange={(value) => void updatePreferences({ interfaceLanguage: value as UiLanguage })} segments={[{ value: 'russian', label: 'Русский' }, { value: 'english', label: 'English' }]} />
+                <p className="mt-2 text-xs text-sh-muted">Язык историй всегда English.</p>
+              </section>
+              {data.account.accountType === 'account' ? <SettingsRow label={data.account.email || 'Аккаунт'} description="Вы вошли в аккаунт" href="/settings" border={false} trailing={<Button variant="ghost" className="!min-h-8 !h-8 !px-2" onClick={async () => { await apiFetchAsGuest('/auth/logout', { method: 'POST' }); window.location.assign('/'); }}>Выйти</Button>} /> : <div className="flex gap-3"><Button href="/signup" className="flex-1">Создать аккаунт</Button><Button href="/login" variant="secondary" className="flex-1">Войти</Button></div>}
+            </div>
+          </Card>
 
-      <Card padding="none" className="overflow-hidden mb-4">
-        <SettingsRow label="Parent controls" description="Child-safe: no open chat, no ads" />
-        <SettingsRow label="Privacy" description="Story data used only to personalize your season" border={false} />
-      </Card>
-
-      <Card padding="none" className="overflow-hidden mb-4">
-        <SettingsRow label="Invite a friend" description="50% off + 50 crystals" href="/referral" />
-        <SettingsRow label="Billing" description={`${subscriptionPlan} · ${availableChapters ?? '—'} chapters`} border={false} />
-      </Card>
-
-      <details className="mb-4">
-        <summary className="text-sm text-sh-forest cursor-pointer">Edit child profile details</summary>
-        <Card padding="md" className="mt-2 space-y-3">
-          <label className="block text-sm">
-            Name
-            <input className="mt-1 w-full border border-sh-border rounded-sh px-3 py-2" value={childName} onChange={(e) => setChildName(e.target.value)} />
-          </label>
-          <label className="block text-sm">
-            Age
-            <input className="mt-1 w-full border border-sh-border rounded-sh px-3 py-2" value={childAge} onChange={(e) => setChildAge(e.target.value)} />
-          </label>
-          <label className="block text-sm">
-            Voice
-            <select className="mt-1 w-full border border-sh-border rounded-sh px-3 py-2" value={ttsVoice} onChange={(e) => setTtsVoice(e.target.value)}>
-              <option value="bm_lewis">Lewis (UK)</option>
-              <option value="af_sarah">Sarah (US)</option>
-              <option value="af_heart">Heart (US)</option>
-            </select>
-          </label>
-        </Card>
-      </details>
-
-      <Button onClick={saveSettings} fullWidth>Save changes</Button>
-      {saveMsg && <p className="text-sm text-center text-sh-forest mt-2">{saveMsg}</p>}
+          <Card padding="none" className="overflow-hidden">
+            <div className={sectionTitle}>Данные и помощь</div>
+            <SettingsRow label="Конфиденциальность и данные" description="Что хранит StoryHop" href="/privacy" />
+            <SettingsRow label="Помощь" description="Написать в поддержку" href="/help" border={false} />
+          </Card>
+        </div>}
+      </div>
     </AppShell>
   );
 }

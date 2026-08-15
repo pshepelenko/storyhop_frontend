@@ -1,12 +1,8 @@
-import { getUiLanguage, setUiLanguage } from '@/lib/ui-language';
-import { useEffect, useState } from 'react';
+import { setUiLanguage } from '@/lib/ui-language';
+import { useUiLanguage } from '@/lib/use-ui-language';
 
 export default function LanguageSelector() {
-  const [uiLang, setUiLang] = useState<'english' | 'russian'>('english');
-
-  useEffect(() => {
-    setUiLang(getUiLanguage());
-  }, []);
+  const uiLang = useUiLanguage();
 
   return (
     <label className="flex items-center gap-1.5 text-sm border border-sh-border rounded-full px-3 py-1.5 bg-white min-h-[36px] shadow-[var(--sh-shadow)] cursor-pointer">
@@ -19,7 +15,6 @@ export default function LanguageSelector() {
         value={uiLang}
         onChange={(e) => {
           const v = e.target.value as 'english' | 'russian';
-          setUiLang(v);
           setUiLanguage(v);
         }}
         aria-label="Interface language"

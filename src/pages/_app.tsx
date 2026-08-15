@@ -1,18 +1,38 @@
 import '../app/globals.css';
 import type { AppProps } from 'next/app';
-import RootLayout from '../app/layout';
-import * as amplitude from '@amplitude/analytics-browser';
+import AppRootShell from '../app/AppRootShell';
 import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { apiFetch, ensureGuestSession } from '@/lib/api-client';
+import {
+  capturePageView,
+  identifyAnalyticsUser,
+  initAnalytics,
+  normalizeAnalyticsRoute,
+} from '@/lib/analytics';
 
 function MyApp({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+
   useEffect(() => {
-    amplitude.init(process.env.AMPLITUDE_API_KEY || 'c906e3951666a05d97e9c7a3b46b6364');
-  }, []);
+    initAnalytics();
+    const trackPage = (url: string) => capturePageView(normalizeAnalyticsRoute(url));
+    trackPage(window.location.pathname);
+    router.events.on('routeChangeComplete', trackPage);
+
+    void ensureGuestSession()
+      .then(() => apiFetch('/auth/me'))
+      .then((response) => (response.ok ? response.json() : null))
+      .then((identity) => identifyAnalyticsUser(identity?.analyticsId, identity?.accountType))
+      .catch(() => undefined);
+
+    return () => router.events.off('routeChangeComplete', trackPage);
+  }, [router.events]);
 
   return (
-    <RootLayout>
+    <AppRootShell>
       <Component {...pageProps} />
-    </RootLayout>
+    </AppRootShell>
   );
 }
 

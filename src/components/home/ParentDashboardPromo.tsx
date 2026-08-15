@@ -6,8 +6,8 @@ import Button from '../ui/Button';
 export default function ParentDashboardPromo({ layout = 'mobile' }: { layout?: 'mobile' | 'desktop' }) {
   if (layout === 'desktop') {
     return (
-      <div className="bg-white rounded-[var(--sh-radius-lg)] border border-sh-border shadow-[var(--sh-shadow-card)] overflow-hidden flex items-center min-h-[100px]">
-        <div className="relative w-36 h-24 shrink-0">
+      <div className="bg-white rounded-[var(--sh-radius-lg)] border border-sh-border shadow-[var(--sh-shadow-card)] overflow-hidden flex items-center min-h-[83px]">
+        <div className="relative w-36 h-[91px] shrink-0">
           <Image src={imageAssets.parent.shareWithParents} alt="" fill className="object-cover" sizes="144px" />
         </div>
         <div className="flex-1 py-4 pl-4 pr-3 min-w-0">
@@ -19,7 +19,7 @@ export default function ParentDashboardPromo({ layout = 'mobile' }: { layout?: '
         <Button
           href="/parent-space"
           variant="secondary"
-          className="shrink-0 mr-4 rounded-[var(--sh-radius)] border-sh-border"
+          className="shrink-0 mr-4 rounded-[var(--sh-radius)]"
         >
           Open dashboard
         </Button>

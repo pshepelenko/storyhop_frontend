@@ -3,7 +3,6 @@ import { HomeFeature } from './home-features';
 
 type ReadinessPillsProps = {
   episodeNumber: number;
-  totalEpisodes: number;
   readiness: {
     nextEpisodePreparing: boolean;
     audioReady: boolean;
@@ -12,8 +11,8 @@ type ReadinessPillsProps = {
   };
 };
 
-export default function ReadinessPills({ episodeNumber, totalEpisodes, readiness }: ReadinessPillsProps) {
-  const readyLabel = `${episodeNumber}/${totalEpisodes} ready`;
+export default function ReadinessPills({ episodeNumber, readiness }: ReadinessPillsProps) {
+  const readyLabel = `Episode ${episodeNumber}`;
 
   const items: { label: string; sub: string; ok: boolean; icon: HomeFeature['icon'] | 'check' }[] = [
     { label: 'Episodes', sub: readyLabel, ok: !readiness.nextEpisodePreparing, icon: 'storybook' },

@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StoryHop Frontend
 
-## Getting Started
+Next.js frontend for StoryHop.
 
-First, run the development server:
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3001`. The UI Kit is available at `http://localhost:3001/ui-kit`; its documentation is in `../docs/ui-kit.md`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The user owns the long-running dev process. `npm run build` writes production output to `.next`, while the project dev script uses `.next-dev`, preventing stale chunk errors when build and dev checks happen near each other.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Railway
 
-## Learn More
+`railway.toml` builds with `npm ci && npm run build` and starts Next through `npm run start:railway` on `0.0.0.0:$PORT`.
 
-To learn more about Next.js, take a look at the following resources:
+Build-time variables:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+NEXT_PUBLIC_API_URL=https://api.story-hop.com
+NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_...
+NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+These values are embedded in the browser bundle. Redeploy frontend after changing them. Analytics stays disabled when the project token is empty. StoryHop masks all replay text and form inputs; PostHog receives interaction structure and explicit safe events without story, child, exercise or speech content.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Run `npm run release:check` before deployment. The complete Railway procedure is in `../docs/alpha-release-runbook.md`.

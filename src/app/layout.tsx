@@ -1,4 +1,5 @@
 import "./globals.css";
+import AppRootShell from "./AppRootShell";
 
 // Remove the metadata export
 // export const metadata: Metadata = {
@@ -12,15 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div
-      className="antialiased bg-sh-background text-sh-foreground flex flex-col min-h-screen w-full"
-      style={{
-        ['--font-geist-sans' as string]: '"Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif',
-        ['--font-geist-mono' as string]: '"SFMono-Regular", "Consolas", monospace',
-        ['--font-story' as string]: 'Georgia, "Lora", "Times New Roman", serif',
-      }}
-    >
-      {children}
-    </div>
+    <html lang="en">
+      <body>
+        <AppRootShell>{children}</AppRootShell>
+      </body>
+    </html>
   );
 }

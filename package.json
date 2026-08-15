@@ -3,16 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 3001",
+    "dev": "node scripts/start-dev.mjs",
+    "dev:clean": "node scripts/dev-clean.mjs",
+    "dev:check": "node scripts/dev-check.mjs",
     "build": "next build",
+    "release:check": "npm run build",
     "start": "next start",
+    "start:railway": "node scripts/start-production.mjs",
     "lint": "next lint",
     "deploy": "npm ci && npm run build && npm run start"
   },
   "dependencies": {
-    "@amplitude/analytics-browser": "^2.12.2",
     "chart.js": "^4.4.8",
     "next": "15.1.7",
+    "posthog-js": "^1.415.6",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.0.0",

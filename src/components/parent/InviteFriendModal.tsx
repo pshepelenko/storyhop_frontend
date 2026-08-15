@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import Button from '../ui/Button';
-import Card from '../ui/Card';
-import { getChannelUserId } from '@/lib/ui-language';
+import { Button, Card, ModalOverlay } from '../ui';
+import { apiFetchAsGuest } from '@/lib/api-client';
 
 type InviteFriendModalProps = {
   open: boolean;
@@ -18,11 +17,9 @@ export default function InviteFriendModal({ open, onClose }: InviteFriendModalPr
     const load = async () => {
       setLoading(true);
       try {
-        const userId = getChannelUserId();
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/referrals`, {
+        const res = await apiFetchAsGuest('/referrals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -45,7 +42,7 @@ export default function InviteFriendModal({ open, onClose }: InviteFriendModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+    <ModalOverlay className="items-end justify-center sm:items-center">
       <Card className="w-full max-w-md" padding="lg">
         <h2 className="text-lg font-bold mb-2">Share StoryHop, earn rewards</h2>
         <p className="text-sm text-sh-muted mb-4">
@@ -72,6 +69,6 @@ export default function InviteFriendModal({ open, onClose }: InviteFriendModalPr
           Close
         </Button>
       </Card>
-    </div>
+    </ModalOverlay>
   );
 }

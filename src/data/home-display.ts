@@ -1,20 +1,25 @@
 export type SidebarSeasonDisplay = {
-  seasonId: string | null;
+  seasonId: string;
   seasonNumber: number;
   title: string;
+  episodeNumber: number;
+  totalEpisodes: number;
   episodesLabel: string;
-  locked: boolean;
-  href?: string;
+  isActive: boolean;
+  href: string;
+  coverImageUrl?: string | null;
 };
 
 export type ActiveSeasonDisplay = {
   seasonId: string;
   seasonTitle: string;
+  episodeNumber: number;
+  totalEpisodes: number;
   episodeLine: string;
   chapterLine: string;
   progressPercent: number;
   readyEpisode: number;
-  totalEpisodes: number;
+  coverImageUrl?: string | null;
   readiness: {
     nextEpisodePreparing: boolean;
     audioReady: boolean;
@@ -23,10 +28,32 @@ export type ActiveSeasonDisplay = {
   };
 };
 
-const DEMO_LOCKED: Omit<SidebarSeasonDisplay, 'seasonId'>[] = [
-  { seasonNumber: 2, title: 'Secrets of the Ocean', episodesLabel: '0 / 12 episodes', locked: true },
-  { seasonNumber: 3, title: 'The Sky Isles', episodesLabel: '0 / 12 episodes', locked: true },
-];
+export type BonusPracticeHomeDisplay = {
+  speakingRecap: {
+    available: boolean;
+    count: number;
+    maxReward: number;
+  };
+  writing: {
+    available: boolean;
+    active?: boolean;
+    wordCount: number;
+    maxReward: number;
+  };
+};
+
+export type TodayActionsDisplay = {
+  spellingAvailableWordsCount: number;
+  speakingAvailablePhrasesCount: number;
+  rewardsCount: number;
+};
+
+export type ParentSnapshotDisplay = {
+  weeklyListeningMinutes: number;
+  completedEpisodesThisWeek: number;
+  newWordsCount: number;
+  speakingPracticeCount: number;
+};
 
 export function formatParentLabel(childName: string): string {
   const cleaned = childName
@@ -46,7 +73,9 @@ type HomeSummaryInput = {
   activeSeason: {
     seasonId: string;
     childName: string;
+    title?: string;
     theme: string;
+    coverImageUrl?: string | null;
     currentEpisodeNumber: number;
     currentEpisodeTitle: string;
     progressPercent: number;
@@ -60,23 +89,28 @@ type HomeSummaryInput = {
   };
   seasons: {
     seasonId: string;
+    title?: string;
     theme: string;
+    coverImageUrl?: string | null;
     currentEpisodeNumber: number;
+    totalEpisodes?: number;
     progressPercent: number;
   }[];
 };
 
 export function mapActiveSeasonDisplay(active: HomeSummaryInput['activeSeason']): ActiveSeasonDisplay {
-  const total = active.totalEpisodes || 12;
-  const ep = active.currentEpisodeNumber;
+  const total = active.totalEpisodes || 1;
+  const episodeNumber = active.currentEpisodeNumber;
   return {
     seasonId: active.seasonId,
-    seasonTitle: truncateText(active.theme, 48),
-    episodeLine: `Episode ${ep} of ${total}`,
+    seasonTitle: truncateText(active.title || 'Your new season', 48),
+    episodeNumber,
+    totalEpisodes: total,
+    episodeLine: `Episode ${episodeNumber}`,
     chapterLine: truncateText(active.currentEpisodeTitle || 'Continue the story', 56),
     progressPercent: active.progressPercent,
-    readyEpisode: ep,
-    totalEpisodes: total,
+    readyEpisode: episodeNumber,
+    coverImageUrl: active.coverImageUrl || null,
     readiness: {
       nextEpisodePreparing: active.readiness.nextEpisodePreparing,
       audioReady: active.readiness.audioReady,
@@ -90,39 +124,18 @@ export function mapSidebarSeasons(
   seasons: HomeSummaryInput['seasons'],
   activeSeasonId: string,
 ): SidebarSeasonDisplay[] {
-  const activeIndex = Math.max(0, seasons.findIndex((s) => s.seasonId === activeSeasonId));
-  const active = seasons[activeIndex];
-  const total = 12;
-
-  const rows: SidebarSeasonDisplay[] = [];
-
-  if (active) {
-    rows.push({
-      seasonId: active.seasonId,
-      seasonNumber: activeIndex + 1,
-      title: truncateText(active.theme, 40),
-      episodesLabel: `${active.currentEpisodeNumber} / ${total} episodes`,
-      locked: false,
-      href: `/seasons/${active.seasonId}`,
-    });
-  }
-
-  const others = seasons.filter((s) => s.seasonId !== activeSeasonId);
-  others.slice(0, 2).forEach((s, i) => {
-    rows.push({
-      seasonId: s.seasonId,
-      seasonNumber: rows.length + 1,
-      title: truncateText(s.theme, 40),
-      episodesLabel: `${s.currentEpisodeNumber} / ${total} episodes`,
-      locked: true,
-    });
+  return seasons.map((season, index) => {
+    const total = season.totalEpisodes || 1;
+    return {
+      seasonId: season.seasonId,
+      seasonNumber: index + 1,
+      title: truncateText(season.title || 'Your new season', 40),
+      episodeNumber: season.currentEpisodeNumber,
+      totalEpisodes: total,
+      episodesLabel: `Episode ${season.currentEpisodeNumber}`,
+      isActive: season.seasonId === activeSeasonId,
+      href: `/seasons/${season.seasonId}`,
+      coverImageUrl: season.coverImageUrl || null,
+    };
   });
-
-  while (rows.length < 3) {
-    const demo = DEMO_LOCKED[rows.length - 1];
-    if (!demo) break;
-    rows.push({ ...demo, seasonId: null });
-  }
-
-  return rows.slice(0, 3);
 }

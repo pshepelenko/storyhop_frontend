@@ -28,7 +28,7 @@ body {
 /* Shared surface styles matching mockup cards */
 @layer components {
   .sh-card {
-    @apply bg-sh-surface rounded-[var(--sh-radius-lg)] border border-sh-border/70 shadow-[var(--sh-shadow-card)];
+    @apply bg-sh-surface rounded-[var(--sh-radius-lg)] border border-sh-border shadow-[var(--sh-shadow-card)];
   }
 
   .sh-pill {

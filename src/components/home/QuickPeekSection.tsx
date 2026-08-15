@@ -16,16 +16,16 @@ export default function QuickPeekSection() {
           <div className="flex flex-col sm:flex-row gap-2.5">
             <button
               type="button"
-              className="flex-1 rounded-xl border-2 border-sh-forest bg-white px-4 py-3.5 text-left text-sm font-medium text-sh-foreground hover:bg-sh-forest-soft/30 transition-colors"
+              className="flex-1 rounded-xl border border-sh-forest bg-white px-4 py-3.5 text-left text-sm font-medium text-sh-forest hover:bg-sh-forest-soft/30 transition-colors"
             >
-              <span className="font-bold text-sh-forest mr-1.5">A</span>
+              <span className="font-bold mr-1.5">A</span>
               Follow the glowing path
             </button>
             <button
               type="button"
-              className="flex-1 rounded-xl border-2 border-sh-coral bg-white px-4 py-3.5 text-left text-sm font-medium text-sh-foreground hover:bg-orange-50 transition-colors"
+              className="flex-1 rounded-xl border border-sh-coral bg-white px-4 py-3.5 text-left text-sm font-medium text-sh-coral hover:bg-orange-50 transition-colors"
             >
-              <span className="font-bold text-sh-coral mr-1.5">B</span>
+              <span className="font-bold mr-1.5">B</span>
               Check the map first
             </button>
           </div>

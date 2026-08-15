@@ -25,7 +25,7 @@ export default function FirstVisitHero() {
             </Button>
             <Button href="/sample-chapter" variant="secondary" fullWidth className="rounded-xl py-3.5 text-[15px]">
               <span className="inline-flex items-center justify-center gap-2 w-full">
-                <span className="w-6 h-6 rounded-full border-2 border-sh-forest flex items-center justify-center text-[10px] text-sh-forest">▶</span>
+                <span className="w-6 h-6 rounded-full border border-sh-forest flex items-center justify-center text-[10px]">▶</span>
                 See sample chapter
               </span>
             </Button>

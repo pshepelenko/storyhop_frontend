@@ -1,15 +1,19 @@
 import Link from 'next/link';
 import { ButtonHTMLAttributes, ReactNode } from 'react';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent' | 'soft';
 
 const variantClasses: Record<Variant, string> = {
   primary:
     'bg-sh-forest text-white hover:bg-sh-forest-dark border-transparent shadow-[0_2px_8px_rgba(27,94,59,0.25)]',
+  accent:
+    'bg-sh-lavender text-white hover:opacity-90 border-transparent shadow-[0_2px_8px_rgba(139,92,246,0.3)]',
+  soft:
+    'bg-sh-lavender/12 text-sh-foreground border-transparent hover:bg-sh-lavender/18 shadow-none',
   secondary:
-    'bg-white text-sh-forest border-2 border-sh-forest/80 hover:bg-sh-forest-soft/50',
+    'bg-white text-sh-forest border border-sh-forest hover:bg-sh-forest-soft/50',
   ghost: 'bg-transparent text-sh-forest border-transparent hover:bg-sh-forest-soft',
-  danger: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100',
+  danger: 'bg-red-50 text-red-700 border border-red-700 hover:bg-red-100',
 };
 
 type BaseProps = {

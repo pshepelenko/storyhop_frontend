@@ -10,7 +10,7 @@ export default function ExploreStoryHopRow({ layout = 'default' }: ExploreStoryH
 
   return (
     <section className={isFullWidth ? 'w-full' : undefined}>
-      <h2 className="text-sm font-semibold text-sh-foreground mb-2.5">Explore StoryHop</h2>
+      <h2 className="text-sm font-semibold text-sh-foreground mb-2">Explore StoryHop</h2>
       <div
         className={
           isFullWidth

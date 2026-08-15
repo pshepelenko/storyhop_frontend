@@ -1,12 +1,23 @@
-import Link from 'next/link';
 import React, { useEffect, useCallback, useState } from 'react';
-import SeasonChapterAudio from './season-chapter-audio';
-import SeasonOptionAudio from './season-option-audio';
+import type { ReactNode } from 'react';
+import EpisodeReaderHeader from '@/components/episode/EpisodeReaderHeader';
+import { useReadingTextSize } from '@/lib/use-reading-text-size';
+import { useUiLanguage } from '@/lib/use-ui-language';
+import { imageAssets } from '@/data/image-assets';
+import {
+  Button,
+  Card,
+  EpisodeAudioPlayer,
+  EpisodeChoiceCard,
+  VocabHighlightText,
+  VocabPracticeRow,
+} from '@/components/ui';
 
 interface AudioChunk {
   chunkId: string;
   type: string;
   choiceId?: string | null;
+  partIndex?: number | null;
   text?: string;
   status: string;
   audioUrl?: string | null;
@@ -66,43 +77,41 @@ type SpeechRecognitionLike = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
-const highlightVocab = (text: string, vocab: VocabWord[] = []): React.ReactNode[] => {
-  if (!vocab.length) return [text];
-  const terms = vocab.map((v) => v.term.toLowerCase()).filter(Boolean);
-  if (!terms.length) return [text];
+const INLINE_SPEAKING_COPY = {
+  english: {
+    label: 'Speaking',
+    instruction: 'Say this line from the story:',
+    start: 'Start speaking',
+    listening: 'Listening now...',
+    checking: 'Checking...',
+    listeningHelp: 'Start speaking now. The line will be sent automatically when we hear you.',
+    checkingHelp: 'Got it. Checking your phrase...',
+    heard: 'Heard:',
+    unsupported: 'Speech recognition is not available in this browser.',
+  },
+  russian: {
+    label: 'Говорим',
+    instruction: 'Повтори фразу из истории:',
+    start: 'Начать говорить',
+    listening: 'Слушаем...',
+    checking: 'Проверяем...',
+    listeningHelp: 'Говорите сейчас. Мы автоматически проверим фразу, когда услышим её.',
+    checkingHelp: 'Поняли. Проверяем фразу...',
+    heard: 'Система распознала:',
+    unsupported: 'Распознавание речи недоступно в этом браузере.',
+  },
+} as const;
 
-  const pattern = terms
-    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .sort((a, b) => b.length - a.length)
-    .join('|');
-
-  const regex = new RegExp(`\\b(${pattern})\\b`, 'gi');
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const matchedWord = match[0];
-    const vocabEntry = vocab.find((v) => v.term.toLowerCase() === matchedWord.toLowerCase());
-    parts.push(
-      <span
-        key={`hl-${match.index}`}
-        className="inline bg-emerald-100 text-emerald-800 font-medium rounded px-0.5 cursor-help"
-        title={vocabEntry?.translationRu ? `${matchedWord} — ${vocabEntry.translationRu}` : matchedWord}
-      >
-        {matchedWord}
-      </span>,
-    );
-    lastIndex = regex.lastIndex;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-  return parts;
-};
+function MicrophoneIcon({ className = 'h-6 w-6' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M6 11a6 6 0 0 0 12 0" />
+      <path d="M12 17v4" />
+      <path d="M8 21h8" />
+    </svg>
+  );
+}
 
 interface SeasonEpisodeViewProps {
   seasonId?: string;
@@ -112,11 +121,13 @@ interface SeasonEpisodeViewProps {
   title: string;
   chapterText: string;
   speakingPrompt?: string;
+  bonusPracticeLauncher?: ReactNode;
   introOptionsPhrase: string;
   highlightedVocabulary?: VocabWord[];
   storyIntro?: StoryIntro | null;
   episodeIllustration?: EpisodeIllustration | null;
   storybookHref?: string | null;
+  backHref?: string;
   confirmLabel?: string;
   illustrationPlaceholderCopy?: {
     generatingTitle: string;
@@ -139,7 +150,6 @@ interface SeasonEpisodeViewProps {
   choices: Choice[];
   audioChunks: AudioChunk[];
   generationStatus: string;
-  totalEpisodes: number;
   onPrev: () => void;
   onNext: () => void;
   onSelectChoice: (choiceId: string) => void;
@@ -151,6 +161,9 @@ interface SeasonEpisodeViewProps {
   selectedChoiceId: string | null;
   voiceLoadingPhrase?: string | null;
   choiceLoading: boolean;
+  choiceResumeHint?: string | null;
+  resumeChoiceLabel?: string | null;
+  onResumeStuckChoice?: () => void;
   onProcessAudio: () => void;
   pendingAudioCount: number;
   hasPrev: boolean;
@@ -161,15 +174,16 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   seasonId,
   episodeId,
   episodeNumber,
-  miniArcNumber,
   title,
   chapterText,
   speakingPrompt,
+  bonusPracticeLauncher,
   introOptionsPhrase,
   highlightedVocabulary,
   storyIntro,
   episodeIllustration,
   storybookHref,
+  backHref,
   illustrationPlaceholderCopy,
   onOpenInviteFriend,
   onCreateIllustration,
@@ -177,7 +191,6 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   showManualIllustrationCreate = false,
   choices,
   audioChunks,
-  totalEpisodes,
   confirmLabel,
   onPrev,
   onNext,
@@ -187,31 +200,68 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   selectedChoiceId,
   voiceLoadingPhrase,
   choiceLoading,
+  choiceResumeHint,
+  resumeChoiceLabel,
+  onResumeStuckChoice,
   onProcessAudio,
   pendingAudioCount,
   hasPrev,
   hasNext,
 }) => {
+  const readingTextSize = useReadingTextSize();
+  const uiLanguage = useUiLanguage();
+  const inlineSpeakingCopy = INLINE_SPEAKING_COPY[uiLanguage];
   const [confirmingChoiceId, setConfirmingChoiceId] = useState<string | null>(null);
-  const [isIntroSpeaking, setIsIntroSpeaking] = useState(false);
+  const [chapterAutoplayToken, setChapterAutoplayToken] = useState<string | null>(null);
   const [speechPhase, setSpeechPhase] = useState<'idle' | 'listening' | 'checking' | 'unsupported'>('idle');
   const [heardTranscript, setHeardTranscript] = useState('');
+  const displayedSpeakingPrompt = speakingPrompt
+    ?.trim()
+    .replace(/^[\"“]+|[\"”]+$/g, '')
+    .trim();
   const findChunk = useCallback(
     (type: string, choiceId?: string) =>
       audioChunks?.find((c) => c.type === type && (choiceId === undefined || c.choiceId === choiceId)),
     [audioChunks],
   );
 
-  const chapterChunk = findChunk('chapter');
+  const chapterChunks = (audioChunks || [])
+    .filter((c) => c.type === 'chapter')
+    .sort((a, b) => (Number(a.partIndex ?? 0) - Number(b.partIndex ?? 0)));
+  const chapterPartsReady =
+    chapterChunks.length > 0 && chapterChunks.every((chunk) => Boolean(chunk.audioUrl));
+  const chapterUrls = chapterPartsReady
+    ? chapterChunks
+        .map((chunk) => chunk.audioUrl)
+        .filter((url): url is string => Boolean(url))
+    : [];
+  const chapterChunk = chapterChunks[0];
+  const chapterAudioUrl = chapterUrls[0] || null;
+  const chapterFollowUrls = chapterUrls.slice(1);
+  const chapterStatus = chapterPartsReady
+    ? chapterChunk?.status || 'ready'
+    : chapterChunks.find((chunk) => !chunk.audioUrl)?.status || chapterChunk?.status || 'missing';
+  const storyIntroChunk = findChunk('story_intro');
   const introChunk = findChunk('intro_options');
   const optionAudioUrls = choices
     .map((choice) => findChunk('choice', choice.id)?.audioUrl)
     .filter((url): url is string => Boolean(url));
-  const manualPlayNextUrls = [
-    introChunk?.audioUrl,
-    ...optionAudioUrls,
-  ].filter((url): url is string => Boolean(url));
-  const autoPlayNextUrls = [introChunk?.audioUrl].filter((url): url is string => Boolean(url));
+  // Chapter player timeline = chapter parts only (correct total duration).
+  // Intro/options are played after chapter ends via a short follow-up queue.
+  const chapterOnlyFollowUrls = chapterFollowUrls;
+  const afterChapterAutoUrls = [introChunk?.audioUrl].filter((url): url is string => Boolean(url));
+  const afterChapterManualUrls = [introChunk?.audioUrl, ...optionAudioUrls].filter(
+    (url): url is string => Boolean(url),
+  );
+  const manualPlayNextUrls = chapterPartsReady
+    ? [...chapterOnlyFollowUrls, ...afterChapterManualUrls]
+    : [];
+  const autoPlayNextUrls = chapterPartsReady
+    ? [...chapterOnlyFollowUrls, ...afterChapterAutoUrls]
+    : [];
+  const chapterAutoplayReadyToken = chapterPartsReady
+    ? `chapter:${episodeNumber}:${chapterUrls.join('|')}`
+    : `waiting:${episodeNumber}:parts`;
 
   const startVoiceAttempt = (targetPhrase: string) => {
     const browserWindow = window as unknown as {
@@ -251,8 +301,14 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
     if (pendingAudioCount > 0) {
       onProcessAudio();
     }
+    setChapterAutoplayToken(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [episodeNumber]);
+
+  useEffect(() => {
+    setSpeechPhase('idle');
+    setHeardTranscript('');
+  }, [episodeId]);
 
   useEffect(() => {
     if (speechPhase === 'checking' && !voiceLoadingPhrase) {
@@ -268,173 +324,144 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
     };
   }, []);
 
-  const toggleIntroSpeech = () => {
-    if (typeof window === 'undefined' || !window.speechSynthesis || !storyIntro?.text) {
-      return;
-    }
-
-    if (isIntroSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsIntroSpeaking(false);
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(`${storyIntro.title}. ${storyIntro.text}`);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.92;
-    utterance.pitch = 1;
-    utterance.onend = () => setIsIntroSpeaking(false);
-    utterance.onerror = () => setIsIntroSpeaking(false);
-    setIsIntroSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-  };
+  const hasStoryIntroBlock = Boolean(storyIntro);
+  const shouldDeferChapterAutoplay = hasStoryIntroBlock && Boolean(storyIntroChunk);
 
   return (
-    <div className="w-full max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={onPrev}
-          disabled={!hasPrev}
-          className="px-3 py-1.5 rounded-full text-sm border border-slate-200 disabled:opacity-30"
-        >
-          ← Prev
-        </button>
-        <div className="text-center">
-          <div className="text-xs text-slate-400">Episode {episodeNumber} of {totalEpisodes}</div>
-          <div className="text-sm font-semibold text-slate-600">Mini-arc {miniArcNumber}</div>
-        </div>
-        <button
-          onClick={onNext}
-          disabled={!hasNext}
-          className="px-3 py-1.5 rounded-full text-sm border border-slate-200 disabled:opacity-30"
-        >
-          Next →
-        </button>
-      </div>
-
-      <h2 className="text-2xl font-bold text-sh-foreground mb-4 font-story">{title}</h2>
+    <div className="w-full max-w-3xl mx-auto">
+      <EpisodeReaderHeader
+        episodeNumber={episodeNumber}
+        title={title}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        onPrev={onPrev}
+        onNext={onNext}
+        storybookHref={storybookHref}
+        backHref={backHref}
+      />
 
       {storyIntro && (
-        <section className="mb-6 overflow-hidden rounded-2xl border border-rose-200 bg-white">
+        <Card className="mb-6 overflow-hidden p-0">
           {storyIntro.imageUrl && (
             <img
               src={storyIntro.imageUrl}
               alt={storyIntro.title}
-              className="aspect-[4/3] w-full bg-rose-50 object-cover"
+              className="aspect-[4/3] w-full bg-sh-forest-soft object-cover"
             />
           )}
           <div className="px-5 py-4">
             {storyIntro.eyebrow && (
-              <div className="text-xs font-semibold uppercase tracking-wide text-rose-500">{storyIntro.eyebrow}</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-sh-forest">{storyIntro.eyebrow}</div>
             )}
-            <div className="mt-1 text-lg font-semibold text-slate-900">{storyIntro.title}</div>
-            <div className="mt-2 text-sm leading-relaxed text-slate-600 whitespace-pre-line">{storyIntro.text}</div>
-            <button
-              type="button"
-              onClick={toggleIntroSpeech}
-              className="mt-4 inline-flex rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
-            >
-              {isIntroSpeaking ? 'Pause intro' : 'Listen to intro'}
-            </button>
+            <div className="mt-1 text-lg font-semibold text-sh-foreground font-story">{storyIntro.title}</div>
+            <div className="mt-2 text-sm leading-relaxed text-sh-muted whitespace-pre-line">{storyIntro.text}</div>
+            <EpisodeAudioPlayer
+              variant="inline"
+              audioUrl={storyIntroChunk?.audioUrl || null}
+              status={storyIntroChunk?.status || 'missing'}
+              label={storyIntro.title}
+              autoPlayOnMount
+              autoPlayToken={`story-intro:${episodeNumber}:${storyIntroChunk?.audioUrl || 'pending'}`}
+              seasonId={seasonId}
+              episodeId={episodeId}
+              onEnded={() => {
+                setChapterAutoplayToken(`intro-done:${episodeNumber}`);
+              }}
+            />
           </div>
-        </section>
+        </Card>
       )}
 
-      <div className="flex flex-col gap-2 mb-4">
-        <SeasonChapterAudio
-          audioUrl={chapterChunk?.audioUrl || null}
-          status={chapterChunk?.status || 'missing'}
-          title={`Chapter ${episodeNumber}`}
-          label="Listen to chapter and options"
-          playNextUrls={manualPlayNextUrls}
-          autoPlayNextUrls={autoPlayNextUrls}
-          autoPlayOnMount
-          autoPlayToken={`${episodeNumber}:${chapterChunk?.audioUrl || 'pending'}`}
-          seasonId={seasonId}
-          episodeId={episodeId}
-        />
-        <SeasonChapterAudio
-          audioUrl={introChunk?.audioUrl || null}
-          status={introChunk?.status || 'missing'}
-          title="What will you do?"
-          label="Listen to options"
-          seasonId={seasonId}
-          episodeId={episodeId}
-        />
-      </div>
+      <EpisodeAudioPlayer
+        variant="inline"
+        audioUrl={chapterAudioUrl}
+        status={chapterStatus}
+        label={`Chapter ${episodeNumber}`}
+        playNextUrls={manualPlayNextUrls}
+        autoPlayNextUrls={autoPlayNextUrls}
+        autoPlayOnMount
+        autoPlayBlocked={
+          !chapterPartsReady || (shouldDeferChapterAutoplay && !chapterAutoplayToken)
+        }
+        autoPlayToken={
+          shouldDeferChapterAutoplay && !chapterAutoplayToken
+            ? `waiting:${episodeNumber}:intro`
+            : chapterAutoplayReadyToken
+        }
+        seasonId={seasonId}
+        episodeId={episodeId}
+      />
 
       {pendingAudioCount > 0 && (
-        <div className="mb-4 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
-          ⏳ {pendingAudioCount} audio chunk(s) being processed...
+        <div className="mb-4 px-4 py-2 rounded-[var(--sh-radius)] bg-amber-50 border border-amber-200 text-sm text-amber-800">
+          {pendingAudioCount} audio chunk(s) being processed...
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
-        <div className="text-base leading-relaxed whitespace-pre-line text-slate-700">{highlightVocab(chapterText, highlightedVocabulary)}</div>
+      <div className="mb-6">
+        <p className={`font-story leading-relaxed whitespace-pre-line text-sh-foreground ${readingTextSize === 'small' ? 'text-sm' : readingTextSize === 'large' ? 'text-lg' : 'text-base'}`}>
+          <VocabHighlightText text={chapterText} vocabulary={highlightedVocabulary} />
+        </p>
 
-        {speakingPrompt && (
-          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Speaking</div>
-            <div className="mt-2 text-sm text-slate-800">Say this line from the story:</div>
-            <div className="mt-2 text-base font-semibold text-emerald-900">&quot;{speakingPrompt}&quot;</div>
-            <button
-              type="button"
-              onClick={() => startVoiceAttempt(speakingPrompt)}
-              disabled={voiceLoadingPhrase === speakingPrompt || speechPhase === 'listening' || speechPhase === 'checking'}
-              className="mt-3 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-            >
-              {speechPhase === 'listening'
-                ? 'Listening now...'
-                : speechPhase === 'checking' || voiceLoadingPhrase === speakingPrompt
-                  ? 'Checking...'
-                  : 'Say the line'}
-            </button>
+        {displayedSpeakingPrompt && (
+          <Card className="mt-5 border-[color:var(--sh-lavender)]/20 bg-[color:var(--sh-lavender)]/5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.label}</div>
+                <div className="mt-2 text-sm text-sh-foreground">{inlineSpeakingCopy.instruction}</div>
+                <div className="mt-2 text-base font-semibold text-sh-foreground">&quot;{displayedSpeakingPrompt}&quot;</div>
+              </div>
+              <Button
+                variant="accent"
+                className="h-16 w-16 shrink-0 rounded-full !px-0 sm:h-[72px] sm:w-[72px]"
+                onClick={() => startVoiceAttempt(displayedSpeakingPrompt)}
+                disabled={voiceLoadingPhrase === displayedSpeakingPrompt || speechPhase === 'listening' || speechPhase === 'checking'}
+                aria-label={speechPhase === 'listening' ? inlineSpeakingCopy.listening : speechPhase === 'checking' || voiceLoadingPhrase === displayedSpeakingPrompt ? inlineSpeakingCopy.checking : inlineSpeakingCopy.start}
+                title={inlineSpeakingCopy.start}
+              >
+                <MicrophoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />
+              </Button>
+            </div>
             {speechPhase === 'listening' && (
-              <div className="mt-2 text-xs text-emerald-700">Start speaking now. The line will be sent automatically when we hear you.</div>
+              <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.listeningHelp}</div>
             )}
             {speechPhase === 'checking' && (
-              <div className="mt-2 text-xs text-emerald-700">Got it. Checking your phrase...</div>
+              <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.checkingHelp}</div>
             )}
             {heardTranscript && (
-              <div className="mt-2 text-xs text-slate-600">Heard: &quot;{heardTranscript}&quot;</div>
+              <div className="ph-sensitive mt-2 text-xs text-sh-muted">{inlineSpeakingCopy.heard} &quot;{heardTranscript}&quot;</div>
             )}
             {speechPhase === 'unsupported' && (
-              <div className="mt-2 text-xs text-rose-600">Speech recognition is not available in this browser.</div>
+              <div className="mt-3 text-xs text-red-600">{inlineSpeakingCopy.unsupported}</div>
             )}
             {voiceFeedback && (
-              <div className={`mt-2 text-xs ${voiceFeedback.tone === 'success' ? 'text-emerald-700' : voiceFeedback.tone === 'error' ? 'text-rose-600' : 'text-slate-600'}`}>
+              <div className={`mt-2 text-xs ${voiceFeedback.tone === 'success' ? 'text-[color:var(--sh-lavender)]' : voiceFeedback.tone === 'error' ? 'text-red-600' : 'text-sh-muted'}`}>
                 {voiceFeedback.text}
               </div>
             )}
-          </div>
+          </Card>
         )}
 
-        {highlightedVocabulary && highlightedVocabulary.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {highlightedVocabulary.map((v, i) => (
-              <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200">
-                {v.term}
-                {v.translationRu && <span className="text-emerald-400">{v.translationRu}</span>}
-              </span>
-            ))}
-          </div>
-        )}
+        {bonusPracticeLauncher}
       </div>
 
+      {highlightedVocabulary && highlightedVocabulary.length > 0 && (
+        <VocabPracticeRow words={highlightedVocabulary} className="mb-6" />
+      )}
+
       {episodeIllustration && (
-        <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="mb-6 overflow-hidden rounded-[var(--sh-radius-lg)] border border-sh-border bg-white">
           {episodeIllustration.imageUrl ? (
             <img
               src={episodeIllustration.imageUrl}
               alt={episodeIllustration.title}
-              className="aspect-[4/3] w-full bg-slate-100 object-cover"
+              className="aspect-[4/3] w-full bg-sh-forest-soft object-cover"
             />
           ) : (
             (() => {
               const phase = episodeIllustration.phase || 'insufficient_crystals';
               const copy = illustrationPlaceholderCopy;
-              const title =
+              const panelTitle =
                 phase === 'generating'
                   ? copy?.generatingTitle || 'Creating illustration'
                   : phase === 'failed'
@@ -452,48 +479,67 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                       : copy?.insufficientBody || '';
               const panelClass =
                 phase === 'generating'
-                  ? 'border-b border-slate-200 bg-sky-50 px-4 py-5 text-sm text-sky-950'
+                  ? 'border-b border-sh-border bg-sky-50 px-4 py-5 text-sm text-sky-950'
                   : phase === 'failed'
-                    ? 'border-b border-slate-200 bg-rose-50 px-4 py-5 text-sm text-rose-950'
-                    : 'border-b border-slate-200 bg-amber-50 px-4 py-5 text-sm text-amber-900';
+                    ? 'border-b border-sh-border bg-red-50 px-4 py-5 text-sm text-red-950'
+                    : 'border-b border-sh-border bg-amber-50 px-4 py-5 text-sm text-amber-900';
+              const placeholderImageSrc =
+                phase === 'insufficient_crystals'
+                  ? imageAssets.states.notEnoughCrystals
+                  : phase === 'unlockable'
+                    ? imageAssets.states.lockedStory
+                    : null;
 
               return (
-            <div className={panelClass}>
-              <div className="font-semibold">{title}</div>
-              <div className="mt-1">{body}</div>
-              {phase === 'generating' && (
-                <div className="mt-3 h-5 w-5 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
-              )}
-              {phase === 'unlockable' && episodeIllustration.hasEnoughCrystals && showManualIllustrationCreate && (
-                <button
-                  type="button"
-                  onClick={onCreateIllustration}
-                  disabled={illustrationLoading}
-                  className="mt-3 inline-flex rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-                >
-                  {illustrationLoading
-                    ? illustrationPlaceholderCopy?.creatingIllustration || 'Creating...'
-                    : illustrationPlaceholderCopy?.createIllustration || 'Create'}
-                </button>
-              )}
-              {phase !== 'generating' && episodeIllustration.hasEnoughCrystals && storybookHref && (
-                <Link
-                  href={storybookHref}
-                  className="mt-3 ml-0 inline-flex rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
-                >
-                  {illustrationPlaceholderCopy?.openStorybook || 'Open Storybook'}
-                </Link>
-              )}
-              {phase === 'insufficient_crystals' && !episodeIllustration.hasEnoughCrystals && (
-                <button
-                  type="button"
-                  onClick={onOpenInviteFriend}
-                  className="mt-3 inline-flex rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
-                >
-                  {illustrationPlaceholderCopy?.inviteFriend || 'Invite a friend'}
-                </button>
-              )}
-            </div>
+                <div className={panelClass}>
+                  {placeholderImageSrc && (
+                    <img
+                      src={placeholderImageSrc}
+                      alt={panelTitle}
+                      className="mb-4 aspect-[4/3] w-full rounded-[var(--sh-radius-md)] border border-sh-border/70 object-cover"
+                    />
+                  )}
+                  <div className="font-semibold">{panelTitle}</div>
+                  <div className="mt-1">{body}</div>
+                  {phase === 'generating' && (
+                    <div className="mt-3 h-5 w-5 animate-spin rounded-full border-2 border-sh-forest border-t-transparent" />
+                  )}
+                  {((phase === 'unlockable' && episodeIllustration.hasEnoughCrystals && showManualIllustrationCreate) ||
+                    (phase !== 'generating' && episodeIllustration.hasEnoughCrystals && storybookHref)) && (
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {phase === 'unlockable' && episodeIllustration.hasEnoughCrystals && showManualIllustrationCreate && (
+                        <Button
+                          variant="primary"
+                          className="!min-h-[36px] h-9 py-0 px-4 text-xs"
+                          onClick={onCreateIllustration}
+                          disabled={illustrationLoading}
+                        >
+                          {illustrationLoading
+                            ? illustrationPlaceholderCopy?.creatingIllustration || 'Creating...'
+                            : illustrationPlaceholderCopy?.createIllustration || 'Create'}
+                        </Button>
+                      )}
+                      {episodeIllustration.hasEnoughCrystals && storybookHref && (
+                        <Button
+                          href={storybookHref}
+                          variant="secondary"
+                          className="!min-h-[36px] h-9 py-0 px-4 text-xs"
+                        >
+                          {illustrationPlaceholderCopy?.openStorybook || 'Open Storybook'}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {phase === 'insufficient_crystals' && !episodeIllustration.hasEnoughCrystals && (
+                    <Button
+                      variant="primary"
+                      className="mt-3 !min-h-[36px] h-9 py-0 px-4 text-xs"
+                      onClick={onOpenInviteFriend}
+                    >
+                      {illustrationPlaceholderCopy?.inviteFriend || 'Invite a friend'}
+                    </Button>
+                  )}
+                </div>
               );
             })()
           )}
@@ -501,22 +547,43 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
       )}
 
       {introOptionsPhrase && (
-        <p className="text-sm text-slate-500 italic mb-3">{introOptionsPhrase}</p>
+        <p className="text-sm text-sh-muted mb-4">{introOptionsPhrase}</p>
       )}
 
-      <div className="flex flex-col gap-3 mb-6">
+      {choiceResumeHint && onResumeStuckChoice && resumeChoiceLabel && (
+        <div className="mb-4 rounded-[var(--sh-radius-lg)] border border-sh-forest/30 bg-sh-forest-soft/40 p-4 text-center">
+          <p className="text-sm text-sh-muted mb-3">{choiceResumeHint}</p>
+          <Button
+            variant="primary"
+            className="!min-h-[40px]"
+            onClick={onResumeStuckChoice}
+            disabled={choiceLoading}
+          >
+            {resumeChoiceLabel}
+          </Button>
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row gap-3 mb-6">
         {choices.map((choice) => {
           const choiceChunk = findChunk('choice', choice.id);
+          const resumeThisChoice = Boolean(choiceResumeHint && selectedChoiceId === choice.id);
           return (
-            <SeasonOptionAudio
+            <EpisodeChoiceCard
               key={choice.id}
-              audioUrl={choiceChunk?.audioUrl || null}
-              audioStatus={choiceChunk?.status || 'missing'}
-              text={choice.text}
               choiceId={choice.id}
+              text={choice.text}
+              audioUrl={choiceChunk?.audioUrl || null}
               isSelected={selectedChoiceId === choice.id}
               isConfirming={confirmingChoiceId === choice.id}
-              onRequestConfirm={(choiceId) => setConfirmingChoiceId(choiceId)}
+              onRequestConfirm={(choiceId) => {
+                if (resumeThisChoice) {
+                  setConfirmingChoiceId(null);
+                  onSelectChoice(choiceId);
+                  return;
+                }
+                setConfirmingChoiceId(choiceId);
+              }}
               onSelect={(choiceId) => {
                 setConfirmingChoiceId(null);
                 onSelectChoice(choiceId);
@@ -529,10 +596,14 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
       </div>
 
       {choiceLoading && (
-        <div className="text-center py-4 text-slate-500">
-          <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+        <div className="text-center py-4 text-sh-muted">
+          <div className="animate-spin w-6 h-6 border-2 border-sh-forest border-t-transparent rounded-full mx-auto mb-2" />
           Loading next episode...
         </div>
+      )}
+
+      {!choiceLoading && choiceResumeHint && !onResumeStuckChoice && (
+        <p className="text-center py-3 text-sm text-sh-muted">{choiceResumeHint}</p>
       )}
     </div>
   );

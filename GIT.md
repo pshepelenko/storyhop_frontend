@@ -17,6 +17,8 @@
 
 `git.ps1` подставляет локальный `.gitconfig.local` (обход `safe.directory` на Windows без правки глобального git config).
 
+Имя автора коммитов задаётся в `.gitconfig.local` — при желании замените `user.name` / `user.email`.
+
 Обычный `git` тоже можно использовать после однократной настройки:
 
 ```powershell

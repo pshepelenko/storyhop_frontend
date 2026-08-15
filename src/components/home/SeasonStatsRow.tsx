@@ -8,7 +8,7 @@ type SeasonStatsRowProps = {
 };
 
 export default function SeasonStatsRow({ display, embedded = false }: SeasonStatsRowProps) {
-  const readyLabel = `${display.readyEpisode}/${display.totalEpisodes} ready`;
+  const readyLabel = `Episode ${display.readyEpisode}`;
   const { readiness } = display;
 
   const items: {

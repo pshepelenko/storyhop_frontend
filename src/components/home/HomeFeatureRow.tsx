@@ -70,7 +70,7 @@ export function ExploreFeatureCard({
         {feature.description}
       </p>
       <div
-        className={`relative mt-2 w-full rounded-md overflow-hidden ${full ? 'h-[72px]' : 'h-14'}`}
+        className={`relative mt-2 w-full rounded-md overflow-hidden ${full ? 'h-[59px]' : 'h-14'}`}
         style={{ backgroundColor: feature.cardColor }}
       >
         <Image src={feature.exploreImage} alt="" fill className="object-contain object-bottom" sizes="160px" />

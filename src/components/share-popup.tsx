@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Switch from "react-switch";
+import { ModalOverlay } from './ui';
 
 interface SharePopupProps {
     storyLink: string;
@@ -25,7 +26,7 @@ const SharePopup: React.FC<SharePopupProps> = ({ storyLink, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <ModalOverlay className="items-center justify-center">
             <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg relative">
                 <h2 className="text-lg font-semibold mb-4 text-center">Поделиться историей</h2>
                 <div className="my-4">
@@ -80,7 +81,7 @@ const SharePopup: React.FC<SharePopupProps> = ({ storyLink, onClose }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalOverlay>
     );
 };
 
