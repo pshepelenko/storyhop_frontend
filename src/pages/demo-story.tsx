@@ -167,7 +167,7 @@ export default function DemoStoryPage() {
   };
 
   return (
-    <AppShell emptyHomeLayout plainBackground>
+    <AppShell emptyHomeLayout plainBackground hideMobileAuthControls>
       <div className="mx-auto max-w-3xl">
         <div className="mb-4 flex items-center justify-between gap-3">
           <Button href="/" variant="ghost" className="px-3">

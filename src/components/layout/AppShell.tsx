@@ -28,6 +28,8 @@ type AppShellProps = {
   desktopBottomNav?: boolean;
   parentLabel?: string | null;
   plainBackground?: boolean;
+  /** Keeps child-facing reading chrome focused on the story on narrow screens. */
+  hideMobileAuthControls?: boolean;
   /** White framed shell on cool gray canvas (returning home desktop mockup) */
   shellVariant?: 'default' | 'framed';
 };
@@ -51,6 +53,7 @@ export default function AppShell({
   showSideNav = false,
   desktopBottomNav = false,
   plainBackground = false,
+  hideMobileAuthControls = false,
   shellVariant = 'default',
 }: AppShellProps) {
   const router = useRouter();
@@ -100,7 +103,9 @@ export default function AppShell({
         </span>
       )}
       {headerRight}
-      <AuthControls />
+      <div className={hideMobileAuthControls ? 'hidden md:block' : undefined}>
+        <AuthControls />
+      </div>
       {!desktopBottomNav && !framed && !emptyHomeLayout && (
         <Link
           href="/settings"

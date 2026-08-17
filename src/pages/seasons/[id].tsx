@@ -1261,6 +1261,7 @@ export default function SeasonPage() {
       shellVariant="framed"
       maxWidth="full"
       plainBackground
+      hideMobileAuthControls
       desktopBottomNav
       crystalBalance={crystalBalance}
       parentLabel={parentLabel}
