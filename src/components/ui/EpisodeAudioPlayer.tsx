@@ -26,6 +26,10 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatTotalTime(seconds: number) {
+  return seconds > 0 ? formatTime(seconds) : '—:—';
+}
+
 const reportListening = async (
   seasonId: string | undefined,
   episodeId: string | undefined,
@@ -184,6 +188,13 @@ export default function EpisodeAudioPlayer({
     if (total > 0) {
       setDuration(total);
       setProgress(Math.min(100, (absolute / total) * 100));
+    } else {
+      // Safari can defer metadata for queued MP3 segments. Keep the currently
+      // playing segment responsive without presenting a misleading total.
+      const localDuration = Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration
+        : 0;
+      setProgress(localDuration > 0 ? Math.min(100, (localCurrent / localDuration) * 100) : 0);
     }
 
     if (
@@ -277,14 +288,21 @@ export default function EpisodeAudioPlayer({
       return;
     }
 
-    Promise.all(playlist.map((url) => probeDuration(url))).then((durations) => {
-      if (cancelled) return;
-      setSegmentDurations(durations);
-      const total = durations.reduce((sum, value) => sum + value, 0);
-      if (total > 0) {
-        setDuration(total);
+    const probePlaylist = async () => {
+      // Parallel metadata loads are unreliable in mobile Safari: a subset of
+      // durations may arrive and used to be shown as a false total duration.
+      const durations: number[] = [];
+      for (const url of playlist) {
+        const value = await probeDuration(url);
+        if (cancelled) return;
+        durations.push(value);
       }
-    });
+      if (durations.length === playlist.length && durations.every((value) => value > 0)) {
+        setSegmentDurations(durations);
+      }
+    };
+
+    void probePlaylist();
 
     return () => {
       cancelled = true;
@@ -486,7 +504,7 @@ export default function EpisodeAudioPlayer({
           />
           <div className="flex justify-between text-[11px] text-sh-muted mt-1">
             <span>{formatTime(current)}</span>
-            <span>{duration > 0 ? formatTime(duration) : '—:—'}</span>
+            <span>{formatTotalTime(duration)}</span>
           </div>
         </div>
       </div>
