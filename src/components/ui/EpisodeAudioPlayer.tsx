@@ -162,11 +162,11 @@ export default function EpisodeAudioPlayer({
 
   useEffect(() => {
     segmentDurationsRef.current = segmentDurations;
-    const total = segmentDurations.reduce((sum, value) => sum + value, 0);
-    if (total > 0) {
-      setDuration(total);
-    }
-  }, [segmentDurations]);
+    const hasEveryDuration =
+      segmentDurations.length === playlist.length && segmentDurations.every((value) => value > 0);
+    const total = hasEveryDuration ? segmentDurations.reduce((sum, value) => sum + value, 0) : 0;
+    setDuration(total);
+  }, [playlist.length, segmentDurations]);
 
   const elapsedBefore = (index: number, durations: number[]) =>
     durations.slice(0, Math.max(0, index)).reduce((sum, value) => sum + value, 0);
@@ -174,22 +174,21 @@ export default function EpisodeAudioPlayer({
   const syncProgressFromElement = (audio: HTMLAudioElement) => {
     const durations = segmentDurationsRef.current;
     const index = segmentIndexRef.current;
-    const total = durations.reduce((sum, value) => sum + value, 0);
-    const knownSegmentDuration =
-      durations[index] || (Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0);
+    const hasEveryDuration =
+      durations.length === playlistRef.current.length && durations.every((value) => value > 0);
+    const total = hasEveryDuration ? durations.reduce((sum, value) => sum + value, 0) : 0;
     const localCurrent = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
     const absolute = elapsedBefore(index, durations) + localCurrent;
-    const displayTotal = total > 0 ? total : knownSegmentDuration;
 
-    if (displayTotal > 0) {
-      setDuration(displayTotal);
-      setCurrent(Math.min(absolute, displayTotal));
-      setProgress(Math.min(100, (absolute / displayTotal) * 100));
+    setCurrent(total > 0 ? Math.min(absolute, total) : localCurrent);
+    if (total > 0) {
+      setDuration(total);
+      setProgress(Math.min(100, (absolute / total) * 100));
     }
 
     if (
-      displayTotal > 0 &&
-      absolute / displayTotal >= 0.8 &&
+      total > 0 &&
+      absolute / total >= 0.8 &&
       !reportedMilestoneRef.current
     ) {
       reportedMilestoneRef.current = true;
@@ -395,7 +394,9 @@ export default function EpisodeAudioPlayer({
   const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const audio = audioRef.current;
     const durations = segmentDurationsRef.current;
-    const total = durations.reduce((sum, value) => sum + value, 0);
+    const hasEveryDuration =
+      durations.length === playlistRef.current.length && durations.every((value) => value > 0);
+    const total = hasEveryDuration ? durations.reduce((sum, value) => sum + value, 0) : 0;
     if (!audio || total <= 0) return;
 
     userInteractedRef.current = true;
@@ -459,7 +460,15 @@ export default function EpisodeAudioPlayer({
           className="w-11 h-11 rounded-full bg-sh-forest text-white flex items-center justify-center shrink-0 shadow-[0_2px_6px_rgba(45,106,79,0.35)] text-sm"
           aria-label={playing ? 'Pause' : 'Play'}
         >
-          {playing ? '❚❚' : '▶'}
+          {playing ? (
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+            </svg>
+          ) : (
+            <svg className="h-5 w-5 translate-x-px" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5.5v13l10-6.5z" />
+            </svg>
+          )}
         </button>
         <div className="flex-1 min-w-0">
           {variant === 'card' && (
@@ -472,7 +481,8 @@ export default function EpisodeAudioPlayer({
             step={0.1}
             value={progress}
             onChange={seek}
-            className="w-full h-1 rounded-full accent-sh-forest mt-1 bg-[#e8e4dc]"
+            disabled={duration <= 0}
+            className="w-full h-1 rounded-full accent-sh-forest mt-1 bg-[#e8e4dc] disabled:opacity-50"
           />
           <div className="flex justify-between text-[11px] text-sh-muted mt-1">
             <span>{formatTime(current)}</span>
