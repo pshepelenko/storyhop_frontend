@@ -8,6 +8,8 @@ type EpisodeAudioPlayerProps = {
   variant?: 'card' | 'inline';
   status?: string;
   playNextUrls?: string[];
+  /** Chunks represented by the visible timeline. Defaults to all queued chunks. */
+  timelineUrls?: string[];
   autoPlayNextUrls?: string[];
   autoPlayOnMount?: boolean;
   autoPlayBlocked?: boolean;
@@ -100,6 +102,7 @@ export default function EpisodeAudioPlayer({
   variant = 'card',
   status,
   playNextUrls = [],
+  timelineUrls,
   autoPlayNextUrls,
   autoPlayOnMount = false,
   autoPlayBlocked = false,
@@ -148,8 +151,14 @@ export default function EpisodeAudioPlayer({
     const urls = [audioUrl, ...follow].filter((url): url is string => Boolean(url));
     return Array.from(new Set(urls));
   }, [audioUrl, autoPlayNextUrls, playNextUrls]);
+  const timeline = useMemo(() => {
+    const follow = timelineUrls ?? playNextUrls;
+    const urls = [audioUrl, ...follow].filter((url): url is string => Boolean(url));
+    return Array.from(new Set(urls));
+  }, [audioUrl, playNextUrls, timelineUrls]);
   const playlistKey = useMemo(() => playlist.join('|'), [playlist]);
   const autoPlaylistKey = useMemo(() => autoPlaylist.join('|'), [autoPlaylist]);
+  const timelineKey = useMemo(() => timeline.join('|'), [timeline]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = playbackRate;
@@ -167,10 +176,10 @@ export default function EpisodeAudioPlayer({
   useEffect(() => {
     segmentDurationsRef.current = segmentDurations;
     const hasEveryDuration =
-      segmentDurations.length === playlist.length && segmentDurations.every((value) => value > 0);
+      segmentDurations.length === timeline.length && segmentDurations.every((value) => value > 0);
     const total = hasEveryDuration ? segmentDurations.reduce((sum, value) => sum + value, 0) : 0;
     setDuration(total);
-  }, [playlist.length, segmentDurations]);
+  }, [timeline.length, segmentDurations]);
 
   const elapsedBefore = (index: number, durations: number[]) =>
     durations.slice(0, Math.max(0, index)).reduce((sum, value) => sum + value, 0);
@@ -179,9 +188,17 @@ export default function EpisodeAudioPlayer({
     const durations = segmentDurationsRef.current;
     const index = segmentIndexRef.current;
     const hasEveryDuration =
-      durations.length === playlistRef.current.length && durations.every((value) => value > 0);
+      durations.length === timeline.length && durations.every((value) => value > 0);
     const total = hasEveryDuration ? durations.reduce((sum, value) => sum + value, 0) : 0;
     const localCurrent = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+
+    // Intro and option chunks can play through the same element after the
+    // chapter. They are not part of the chapter timeline.
+    if (index >= timeline.length) {
+      setCurrent(total);
+      setProgress(100);
+      return;
+    }
     const absolute = elapsedBefore(index, durations) + localCurrent;
 
     setCurrent(total > 0 ? Math.min(absolute, total) : localCurrent);
@@ -282,7 +299,7 @@ export default function EpisodeAudioPlayer({
 
   useEffect(() => {
     let cancelled = false;
-    if (!playlist.length) {
+    if (!timeline.length) {
       setSegmentDurations([]);
       setDuration(0);
       return;
@@ -292,12 +309,12 @@ export default function EpisodeAudioPlayer({
       // Parallel metadata loads are unreliable in mobile Safari: a subset of
       // durations may arrive and used to be shown as a false total duration.
       const durations: number[] = [];
-      for (const url of playlist) {
+      for (const url of timeline) {
         const value = await probeDuration(url);
         if (cancelled) return;
         durations.push(value);
       }
-      if (durations.length === playlist.length && durations.every((value) => value > 0)) {
+      if (durations.length === timeline.length && durations.every((value) => value > 0)) {
         setSegmentDurations(durations);
       }
     };
@@ -307,9 +324,9 @@ export default function EpisodeAudioPlayer({
     return () => {
       cancelled = true;
     };
-  // `playlistKey` is the stable media identity; probing must not restart when callbacks update.
+  // `timelineKey` is the stable visible-media identity; probing must not restart when callbacks update.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playlistKey]);
+  }, [timelineKey]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -319,7 +336,7 @@ export default function EpisodeAudioPlayer({
     const onLoadedMetadata = () => {
       const durations = [...segmentDurationsRef.current];
       const index = segmentIndexRef.current;
-      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      if (index < timeline.length && Number.isFinite(audio.duration) && audio.duration > 0) {
         durations[index] = audio.duration;
         segmentDurationsRef.current = durations;
         setSegmentDurations(durations);
@@ -364,7 +381,7 @@ export default function EpisodeAudioPlayer({
     };
   // Audio handlers deliberately read current refs so pause/resume survives parent rerenders.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playlistKey, seasonId, episodeId]);
+  }, [playlistKey, timelineKey, seasonId, episodeId]);
 
   // The autoplay token is the dependency contract; callbacks read current audio refs.
   useEffect(() => {
@@ -413,7 +430,7 @@ export default function EpisodeAudioPlayer({
     const audio = audioRef.current;
     const durations = segmentDurationsRef.current;
     const hasEveryDuration =
-      durations.length === playlistRef.current.length && durations.every((value) => value > 0);
+      durations.length === timeline.length && durations.every((value) => value > 0);
     const total = hasEveryDuration ? durations.reduce((sum, value) => sum + value, 0) : 0;
     if (!audio || total <= 0) return;
 

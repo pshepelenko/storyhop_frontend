@@ -378,6 +378,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
         status={chapterStatus}
         label={`Chapter ${episodeNumber}`}
         playNextUrls={manualPlayNextUrls}
+        timelineUrls={chapterOnlyFollowUrls}
         autoPlayNextUrls={autoPlayNextUrls}
         autoPlayOnMount
         autoPlayBlocked={

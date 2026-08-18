@@ -208,6 +208,7 @@ export default function DemoStoryPage() {
               variant="inline"
               audioUrl={chapterAudioUrl}
               playNextUrls={autoQueue}
+              timelineUrls={[]}
               autoPlayOnMount
               autoPlayToken={currentNode.nodeKey}
               status={chapterAudioUrl ? 'ready' : 'missing'}
