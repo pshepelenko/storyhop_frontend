@@ -23,6 +23,7 @@ type DemoAudioChunk = {
   type: 'chapter' | 'intro' | 'choice' | string;
   choiceId?: string | null;
   audioUrl?: string | null;
+  durationSeconds?: number | null;
 };
 
 type DemoChoice = {
@@ -83,12 +84,12 @@ const copy = {
   },
 };
 
-function findAudio(chunks: DemoAudioChunk[], type: string, choiceId?: string) {
+function findAudioChunk(chunks: DemoAudioChunk[], type: string, choiceId?: string) {
   return chunks.find((chunk) => {
     if (chunk.type !== type) return false;
     if (!choiceId) return true;
     return chunk.choiceId === choiceId || chunk.id === `choice-${choiceId}`;
-  })?.audioUrl || null;
+  }) || null;
 }
 
 export default function DemoStoryPage() {
@@ -135,10 +136,11 @@ export default function DemoStoryPage() {
   }, [story?.nodes]);
 
   const currentNode = currentNodeKey ? nodeByKey.get(currentNodeKey) : null;
-  const chapterAudioUrl = currentNode ? findAudio(currentNode.audioChunks, 'chapter') : null;
-  const introAudioUrl = currentNode ? findAudio(currentNode.audioChunks, 'intro') : null;
+  const chapterAudio = currentNode ? findAudioChunk(currentNode.audioChunks, 'chapter') : null;
+  const chapterAudioUrl = chapterAudio?.audioUrl || null;
+  const introAudioUrl = currentNode ? findAudioChunk(currentNode.audioChunks, 'intro')?.audioUrl || null : null;
   const choiceAudioUrls = currentNode?.choices
-    .map((choice) => findAudio(currentNode.audioChunks, 'choice', choice.id))
+    .map((choice) => findAudioChunk(currentNode.audioChunks, 'choice', choice.id)?.audioUrl)
     .filter(Boolean) as string[] | undefined;
   const autoQueue = [introAudioUrl, ...(choiceAudioUrls || [])].filter(Boolean) as string[];
 
@@ -209,6 +211,7 @@ export default function DemoStoryPage() {
               audioUrl={chapterAudioUrl}
               playNextUrls={autoQueue}
               timelineUrls={[]}
+              timelineDurations={chapterAudio?.durationSeconds ? [chapterAudio.durationSeconds] : []}
               autoPlayOnMount
               autoPlayToken={currentNode.nodeKey}
               status={chapterAudioUrl ? 'ready' : 'missing'}
@@ -250,7 +253,7 @@ export default function DemoStoryPage() {
                       key={choice.id}
                       choiceId={choice.id}
                       text={choice.text}
-                      audioUrl={findAudio(currentNode.audioChunks, 'choice', choice.id)}
+                      audioUrl={findAudioChunk(currentNode.audioChunks, 'choice', choice.id)?.audioUrl || null}
                       isConfirming={confirmingChoiceId === choice.id}
                       confirmLabel={t.confirm}
                       onRequestConfirm={setConfirmingChoiceId}

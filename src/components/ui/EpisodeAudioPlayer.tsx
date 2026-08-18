@@ -10,6 +10,8 @@ type EpisodeAudioPlayerProps = {
   playNextUrls?: string[];
   /** Chunks represented by the visible timeline. Defaults to all queued chunks. */
   timelineUrls?: string[];
+  /** Server-calculated MP3 durations, aligned with the visible timeline. */
+  timelineDurations?: Array<number | null | undefined>;
   autoPlayNextUrls?: string[];
   autoPlayOnMount?: boolean;
   autoPlayBlocked?: boolean;
@@ -103,6 +105,7 @@ export default function EpisodeAudioPlayer({
   status,
   playNextUrls = [],
   timelineUrls,
+  timelineDurations,
   autoPlayNextUrls,
   autoPlayOnMount = false,
   autoPlayBlocked = false,
@@ -159,6 +162,11 @@ export default function EpisodeAudioPlayer({
   const playlistKey = useMemo(() => playlist.join('|'), [playlist]);
   const autoPlaylistKey = useMemo(() => autoPlaylist.join('|'), [autoPlaylist]);
   const timelineKey = useMemo(() => timeline.join('|'), [timeline]);
+  const persistedTimelineDurations = useMemo(() => {
+    if (timelineDurations?.length !== timeline.length) return [];
+    const values = timelineDurations.map((value) => Number(value || 0));
+    return values.every((value) => Number.isFinite(value) && value > 0) ? values : [];
+  }, [timeline.length, timelineDurations]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = playbackRate;
@@ -298,10 +306,19 @@ export default function EpisodeAudioPlayer({
   }, [autoPlayToken, episodeId, label]);
 
   useEffect(() => {
+    if (persistedTimelineDurations.length === timeline.length) {
+      setSegmentDurations(persistedTimelineDurations);
+    }
+  }, [persistedTimelineDurations, timeline.length]);
+
+  useEffect(() => {
     let cancelled = false;
     if (!timeline.length) {
       setSegmentDurations([]);
       setDuration(0);
+      return;
+    }
+    if (persistedTimelineDurations.length === timeline.length) {
       return;
     }
 
@@ -326,7 +343,7 @@ export default function EpisodeAudioPlayer({
     };
   // `timelineKey` is the stable visible-media identity; probing must not restart when callbacks update.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timelineKey]);
+  }, [timelineKey, persistedTimelineDurations]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -336,7 +353,12 @@ export default function EpisodeAudioPlayer({
     const onLoadedMetadata = () => {
       const durations = [...segmentDurationsRef.current];
       const index = segmentIndexRef.current;
-      if (index < timeline.length && Number.isFinite(audio.duration) && audio.duration > 0) {
+      if (
+        index < timeline.length &&
+        !segmentDurationsRef.current[index] &&
+        Number.isFinite(audio.duration) &&
+        audio.duration > 0
+      ) {
         durations[index] = audio.duration;
         segmentDurationsRef.current = durations;
         setSegmentDurations(durations);

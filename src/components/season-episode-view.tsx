@@ -21,6 +21,7 @@ interface AudioChunk {
   text?: string;
   status: string;
   audioUrl?: string | null;
+  durationSeconds?: number | null;
 }
 
 interface VocabWord {
@@ -379,6 +380,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
         label={`Chapter ${episodeNumber}`}
         playNextUrls={manualPlayNextUrls}
         timelineUrls={chapterOnlyFollowUrls}
+        timelineDurations={chapterChunks.map((chunk) => chunk.durationSeconds)}
         autoPlayNextUrls={autoPlayNextUrls}
         autoPlayOnMount
         autoPlayBlocked={
