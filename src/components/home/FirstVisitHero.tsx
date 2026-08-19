@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { imageAssets } from '@/data/image-assets';
-import Button from '../ui/Button';
+import { Button, PlayIcon } from '../ui';
 
 export default function FirstVisitHero() {
   return (
@@ -25,7 +25,9 @@ export default function FirstVisitHero() {
             </Button>
             <Button href="/sample-chapter" variant="secondary" fullWidth className="rounded-xl py-3.5 text-[15px]">
               <span className="inline-flex items-center justify-center gap-2 w-full">
-                <span className="w-6 h-6 rounded-full border border-sh-forest flex items-center justify-center text-[10px]">▶</span>
+                <span className="w-6 h-6 rounded-full border border-sh-forest flex items-center justify-center">
+                  <PlayIcon className="h-3 w-3 translate-x-px" />
+                </span>
                 See sample chapter
               </span>
             </Button>

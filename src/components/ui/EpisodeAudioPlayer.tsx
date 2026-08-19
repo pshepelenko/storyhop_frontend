@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { captureAnalyticsEvent } from '@/lib/analytics';
+import PlayIcon from './PlayIcon';
 
 type EpisodeAudioPlayerProps = {
   audioUrl?: string | null;
@@ -490,8 +491,8 @@ export default function EpisodeAudioPlayer({
   if (!audioUrl) {
     const placeholder = (
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-full bg-sh-forest-soft flex items-center justify-center shrink-0 text-sh-muted text-sm">
-          ▶
+        <div className="w-11 h-11 rounded-full bg-sh-forest-soft flex items-center justify-center shrink-0 text-sh-muted">
+          <PlayIcon className="h-4 w-4 translate-x-px" />
         </div>
         <div className="flex-1 min-w-0">
           {variant === 'card' && <p className="text-sm font-semibold text-sh-muted">{label}</p>}

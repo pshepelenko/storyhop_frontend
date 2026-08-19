@@ -12,6 +12,7 @@ export { default as EpisodeChoiceCard } from './EpisodeChoiceCard';
 export { default as VocabHighlightText } from './VocabHighlightText';
 export { default as VocabPracticeRow } from './VocabPracticeRow';
 export { default as SpeakerIcon } from './SpeakerIcon';
+export { default as PlayIcon } from './PlayIcon';
 export { default as SegmentedControl } from './SegmentedControl';
 export { default as AgeStepper } from './AgeStepper';
 export { default as ModalOverlay } from './ModalOverlay';

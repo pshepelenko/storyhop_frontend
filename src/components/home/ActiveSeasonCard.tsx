@@ -2,7 +2,7 @@ import Image from 'next/image';
 import { imageAssets } from '@/data/image-assets';
 import { ActiveSeasonDisplay } from '@/data/home-display';
 import { useUiLanguage } from '@/lib/use-ui-language';
-import Button from '../ui/Button';
+import { Button, PlayIcon } from '../ui';
 import { getHomeWithSeasonsCopy } from './home-with-seasons-copy';
 
 type ActiveSeasonCardProps = {
@@ -53,7 +53,9 @@ export default function ActiveSeasonCard({
             className={`w-fit rounded-[var(--sh-radius)] px-4 py-2 ${isDesktop ? '' : 'text-sm'} min-h-[36px]`}
           >
             <span className="inline-flex items-center gap-1.5 text-sm">
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/25 text-[8px]">▶</span>
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/25">
+                <PlayIcon className="h-2.5 w-2.5 translate-x-px" />
+              </span>
               {copy.continueCta}
             </span>
           </Button>

@@ -9,6 +9,7 @@ import {
   EpisodeChoiceCard,
   FeatureCard,
   ModalOverlay,
+  PlayIcon,
   ProgressBar,
   ProgressRing,
   SectionHeader,
@@ -170,6 +171,15 @@ export default function UiKitPage() {
               imageSrc={imageAssets.home.features.audio}
               accentClass="bg-sh-green-soft"
             />
+          </KitSection>
+
+          <KitSection title="PlayIcon">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sh-forest text-white">
+                <PlayIcon className="h-5 w-5 translate-x-px" />
+              </span>
+              <p className="text-sm text-sh-muted">Fixed SVG glyph for play actions. It must not use an emoji character.</p>
+            </div>
           </KitSection>
 
           <KitSection title="ModalOverlay">
