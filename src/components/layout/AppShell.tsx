@@ -32,6 +32,7 @@ type AppShellProps = {
   hideMobileAuthControls?: boolean;
   /** White framed shell on cool gray canvas (returning home desktop mockup) */
   shellVariant?: 'default' | 'framed';
+  onNavigationAttempt?: (href: string) => boolean;
 };
 
 const NAV_ITEMS = [
@@ -55,6 +56,7 @@ export default function AppShell({
   plainBackground = false,
   hideMobileAuthControls = false,
   shellVariant = 'default',
+  onNavigationAttempt,
 }: AppShellProps) {
   const router = useRouter();
   const framed = shellVariant === 'framed';
@@ -141,6 +143,7 @@ export default function AppShell({
       >
         <Link
           href="/"
+          onClick={(event) => { if (onNavigationAttempt && !onNavigationAttempt('/')) event.preventDefault(); }}
           className={`flex items-center gap-2 shrink-0 ${splitDesktop && !emptyHomeLayout ? 'lg:hidden' : ''}`}
         >
           <Logo />
@@ -185,6 +188,7 @@ export default function AppShell({
         isActive={(href) => isActive(href)}
         plainMobileBackground={framed}
         showHelpButton
+        onNavigationAttempt={onNavigationAttempt}
       >
         {content}
       </DesktopSplitLayout>
@@ -238,9 +242,10 @@ export default function AppShell({
               <Logo />
             </Link>
             {NAV_ITEMS.map(({ href, key, Icon }) => (
-              <Link
-                key={href}
-                href={href}
+            <Link
+              key={href}
+              href={href}
+              onClick={(event) => { if (onNavigationAttempt && !onNavigationAttempt(href)) event.preventDefault(); }}
                 className={`flex items-center gap-2 rounded-sh px-3 py-2 text-sm min-h-[var(--sh-tap-min)] ${
                   isActive(href) ? 'bg-sh-forest-soft text-sh-forest font-semibold' : 'text-sh-muted hover:bg-white'
                 }`}

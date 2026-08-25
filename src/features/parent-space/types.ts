@@ -14,7 +14,7 @@ export type ParentSpaceSeasonCard = {
 
 export type ParentSpaceWordRow = {
   word: string;
-  translationRu: string;
+  meaningInContext: string;
   exposureCount: number;
   attempts: number;
   successes: number;

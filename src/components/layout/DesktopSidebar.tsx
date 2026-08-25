@@ -21,9 +21,10 @@ const NAV_ITEMS = [
 type DesktopSidebarProps = {
   isActive: (href: string) => boolean;
   showHelpButton?: boolean;
+  onNavigationAttempt?: (href: string) => boolean;
 };
 
-export default function DesktopSidebar({ isActive, showHelpButton = true }: DesktopSidebarProps) {
+export default function DesktopSidebar({ isActive, showHelpButton = true, onNavigationAttempt }: DesktopSidebarProps) {
   const lang = useUiLanguage();
   const navCopy = getNavCopy(lang);
 
@@ -44,7 +45,7 @@ export default function DesktopSidebar({ isActive, showHelpButton = true }: Desk
       </div>
 
       <div className="relative z-10 flex flex-col px-4 pt-6 pb-3 flex-1">
-        <Link href="/" className="px-1 shrink-0">
+        <Link href="/" onClick={(event) => { if (onNavigationAttempt && !onNavigationAttempt('/')) event.preventDefault(); }} className="px-1 shrink-0">
           <Logo />
         </Link>
 
@@ -55,6 +56,7 @@ export default function DesktopSidebar({ isActive, showHelpButton = true }: Desk
               <Link
                 key={href}
                 href={href}
+                onClick={(event) => { if (onNavigationAttempt && !onNavigationAttempt(href)) event.preventDefault(); }}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] min-h-[44px] transition-colors ${
                   active
                     ? 'bg-sh-forest-soft text-sh-forest font-semibold'

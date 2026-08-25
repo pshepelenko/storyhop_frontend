@@ -32,7 +32,7 @@ export type ParentSpaceCopy = {
   attemptsSuccessful: string;
   topWords: string;
   wordCol: string;
-  translationCol: string;
+  meaningCol: string;
   attemptsCol: string;
   successCol: string;
   spellingTitle: string;
@@ -92,7 +92,7 @@ const COPY: Record<UiLanguage, ParentSpaceCopy> = {
     attemptsSuccessful: 'Successful',
     topWords: 'Words this period',
     wordCol: 'Word',
-    translationCol: 'Translation',
+    meaningCol: 'Simple explanation',
     attemptsCol: 'Attempts',
     successCol: 'OK',
     spellingTitle: 'Spelling practice',
@@ -153,7 +153,7 @@ const COPY: Record<UiLanguage, ParentSpaceCopy> = {
     attemptsSuccessful: 'Успешных',
     topWords: 'Слова за период',
     wordCol: 'Слово',
-    translationCol: 'Перевод',
+    meaningCol: 'Простое объяснение',
     attemptsCol: 'Попыток',
     successCol: 'Верно',
     spellingTitle: 'Правописание',

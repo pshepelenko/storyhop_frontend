@@ -23,22 +23,23 @@ export default function VocabPracticeRow({
   className = '',
 }: VocabPracticeRowProps) {
   const onSpeak = useCallback((term: string) => speakTerm(term), []);
+  const availableWords = words.filter((word) => word.meaningInContext?.trim());
 
-  if (!words.length) return null;
+  if (!availableWords.length) return null;
 
   return (
-    <section className={`hidden lg:block ${className}`}>
+    <section className={`${className}`}>
       <h3 className="text-sm font-semibold text-sh-foreground mb-3">{title}</h3>
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {words.map((word) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {availableWords.map((word) => (
           <div
             key={word.term}
             className="flex items-center gap-3 min-w-[140px] shrink-0 rounded-[var(--sh-radius-lg)] border border-sh-border bg-white px-4 py-3 shadow-[var(--sh-shadow)]"
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-sh-foreground">{word.term}</p>
-              {word.translationRu && (
-                <p className="text-xs text-sh-muted mt-0.5">{word.translationRu}</p>
+              {word.meaningInContext && (
+                <p className="mt-1 text-xs leading-relaxed text-sh-muted">{word.meaningInContext}</p>
               )}
             </div>
             <button

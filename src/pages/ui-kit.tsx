@@ -231,22 +231,23 @@ export default function UiKitPage() {
             <Card className="space-y-5">
               <EpisodeAudioPlayer label="The Spiral Path Opens" />
               <EpisodeAudioPlayer variant="inline" label="Inline player" />
-              <p className="font-story text-base leading-relaxed">
+              <div className="font-story text-base leading-relaxed">
                 <VocabHighlightText
                   text="The green crystal glowed brighter as the spiral path opened through the vines."
                   vocabulary={[
-                    { term: 'crystal', translationRu: 'кристалл' },
-                    { term: 'spiral', translationRu: 'спираль' },
-                    { term: 'vines', translationRu: 'лозы' },
+                    { term: 'crystal', meaningInContext: 'A hard, shining stone that can hold magic.' },
+                    { term: 'spiral', meaningInContext: 'A line that curls around and around.' },
+                    { term: 'vines', meaningInContext: 'Long green plants that climb or hang.' },
                   ]}
                 />
-              </p>
+              </div>
               <VocabPracticeRow
                 words={[
-                  { term: 'crystal', translationRu: 'кристалл' },
-                  { term: 'spiral', translationRu: 'спираль' },
-                  { term: 'vines', translationRu: 'лозы' },
+                  { term: 'crystal', meaningInContext: 'A hard, shining stone that can hold magic.' },
+                  { term: 'spiral', meaningInContext: 'A line that curls around and around.' },
+                  { term: 'vines', meaningInContext: 'Long green plants that climb or hang.' },
                 ]}
+                title="Words from this chapter"
                 className="!block"
               />
               <div className="flex flex-col lg:flex-row gap-3">

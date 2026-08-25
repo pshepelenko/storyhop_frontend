@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export type PracticeOrigin = 'story' | 'home';
 export type PracticeType = 'speaking_single' | 'speaking_recap' | 'spelling_test';
-export type PracticeMode = 'audio' | 'translation';
+export type PracticeMode = 'audio';
 export type PracticeLaunchMode = 'intro' | 'direct';
 
 export type BonusPracticeHomeSummary = {
@@ -78,19 +78,17 @@ export type WritingChallengePayload = {
   maxReward?: number;
   currentWord: {
     term: string;
-    translationRu: string;
     meaningInContext: string;
-    firstLetter: string;
-    hintsUsed: ('first_letter' | 'translation')[];
+    hintsUsed: ('explanation')[];
     revealed: boolean;
     rewardEligible?: boolean;
   } | null;
   words: {
     term: string;
-    translationRu: string;
+    meaningInContext: string;
     completed: boolean;
     reward: number;
-    hintsUsed: ('first_letter' | 'translation')[];
+    hintsUsed: ('explanation')[];
     rewardEligible?: boolean;
   }[];
 };
@@ -128,9 +126,7 @@ export function practiceCopy(language: UiLanguage) {
       next: 'Дальше',
       check: 'Проверить',
       audioMode: 'По аудио',
-      translationMode: 'По переводу',
-      firstLetter: 'Первая буква',
-      showTranslation: 'Показать перевод',
+      explanationLabel: 'Простое объяснение',
       showAnswer: 'Показать ответ',
       writePlaceholder: 'Напиши слово...',
       goodJob: 'Отлично!',
@@ -149,7 +145,8 @@ export function practiceCopy(language: UiLanguage) {
       writingIntroBody: 'Проверь, как хорошо ты запоминаешь английские слова из этого сезона.',
       writingReward: 'До +4 кристаллов',
       writingPrompt: 'Слушай и напиши слово',
-      writingPromptTranslation: 'Прочитай перевод и напиши слово',
+      writingPromptExplanation: 'Прочитай простое объяснение и напиши слово',
+      explanationUnavailable: 'Для этого старого слова пока нет объяснения.',
       lineAccepted: 'Фраза засчитана',
       lineNotMatched: 'Мы услышали тебя, но фраза совпала недостаточно точно.',
       pendingUnavailable: 'Сейчас бонусная практика недоступна.',
@@ -178,9 +175,7 @@ export function practiceCopy(language: UiLanguage) {
     next: 'Next',
     check: 'Check',
     audioMode: 'By audio',
-    translationMode: 'By translation',
-    firstLetter: 'First letter',
-    showTranslation: 'Show translation',
+    explanationLabel: 'Simple explanation',
     showAnswer: 'Show answer',
     writePlaceholder: 'Type the word...',
     goodJob: 'Great job!',
@@ -199,7 +194,8 @@ export function practiceCopy(language: UiLanguage) {
     writingIntroBody: 'Check how well you remember the English words from this season.',
     writingReward: 'Up to +4 crystals',
     writingPrompt: 'Listen and write the word',
-    writingPromptTranslation: 'Read the translation and write the word',
+    writingPromptExplanation: 'Read the simple explanation and write the word',
+    explanationUnavailable: 'This older word has no explanation yet.',
     lineAccepted: 'The phrase was accepted',
     lineNotMatched: 'We heard you, but the phrase did not match closely enough.',
     pendingUnavailable: 'Bonus practice is not available right now.',

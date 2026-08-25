@@ -7,6 +7,9 @@ import { apiFetchAsGuest } from '@/lib/api-client';
 export default function EditChildProfilePage() {
   const router = useRouter();
   const [initial, setInitial] = useState<Partial<ChildProfileInput> | null>(null);
+  const returnTo = typeof router.query.returnTo === 'string' && router.query.returnTo.startsWith('/')
+    ? router.query.returnTo
+    : '/settings';
 
   useEffect(() => {
     void apiFetchAsGuest('/users/me/settings').then(async (response) => {
@@ -23,10 +26,10 @@ export default function EditChildProfilePage() {
         <h1 className="mt-2 font-story text-3xl font-bold text-sh-foreground">Настройки для новых сезонов</h1>
         <p className="mt-3 text-base leading-relaxed text-sh-muted">Изменения не затронут уже созданные истории.</p>
         <div className="mt-6">
-          {initial ? <ChildProfileForm initialValue={initial} submitLabel="Сохранить" onBack={() => router.push('/settings')} onSubmit={async (profile) => {
+          {initial ? <ChildProfileForm initialValue={initial} submitLabel="Сохранить" onBack={() => router.push(returnTo)} onSubmit={async (profile) => {
             const response = await apiFetchAsGuest('/users/me/child-profile', { method: 'PUT', body: JSON.stringify(profile) });
             if (!response.ok) throw new Error(`Не удалось сохранить профиль (${response.status})`);
-            await router.push('/settings');
+            await router.push(returnTo);
           }} /> : <p className="text-sm text-sh-muted">Загружаем профиль...</p>}
         </div>
       </div>

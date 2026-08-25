@@ -15,7 +15,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type DemoVocabWord = {
   term: string;
-  translationRu?: string;
+  meaningInContext?: string;
 };
 
 type DemoAudioChunk = {
@@ -226,7 +226,10 @@ export default function DemoStoryPage() {
               </div>
             </Card>
 
-            <VocabPracticeRow words={currentNode.highlightedVocabulary} />
+            <VocabPracticeRow
+              words={currentNode.highlightedVocabulary}
+              title={lang === 'russian' ? 'Слова из этой главы' : 'Words from this chapter'}
+            />
 
             <section className="overflow-hidden rounded-[var(--sh-radius-lg)] border border-sh-border bg-white shadow-[var(--sh-shadow-card)]">
               {currentNode.imageUrl ? (

@@ -14,7 +14,7 @@ export async function getParentSpaceProgress(
   const raw = await response.json();
   const words = (raw.vocabulary?.words || []).map((word: Record<string, unknown>) => ({
     word: String(word.word || ''),
-    translationRu: String(word.translationRu || ''),
+    meaningInContext: String(word.meaningInContext || ''),
     exposureCount: Number(word.exposureCount || 0),
     attempts: Number(word.attempts || 0),
     successes: Number(word.successes || 0),

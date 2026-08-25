@@ -8,6 +8,7 @@ type DesktopSplitLayoutProps = {
   isActive: (href: string) => boolean;
   plainMobileBackground?: boolean;
   showHelpButton?: boolean;
+  onNavigationAttempt?: (href: string) => boolean;
 };
 
 /** Desktop: landscape in sidebar only; main column stays white. */
@@ -16,6 +17,7 @@ export default function DesktopSplitLayout({
   isActive,
   plainMobileBackground = false,
   showHelpButton = true,
+  onNavigationAttempt,
 }: DesktopSplitLayoutProps) {
   return (
     <div className="relative min-h-screen flex w-full text-sh-foreground font-[family-name:var(--font-geist-sans)]">
@@ -36,7 +38,7 @@ export default function DesktopSplitLayout({
         </div>
       )}
 
-      <DesktopSidebar isActive={isActive} showHelpButton={showHelpButton} />
+      <DesktopSidebar isActive={isActive} showHelpButton={showHelpButton} onNavigationAttempt={onNavigationAttempt} />
 
       <div className="relative z-10 flex-1 min-w-0 flex flex-col items-stretch min-h-screen lg:bg-white">
         {children}

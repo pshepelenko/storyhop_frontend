@@ -58,7 +58,7 @@ export default function VocabularyCard({ vocabulary, spelling, copy }: Props) {
           <thead>
             <tr className="text-sh-muted">
               <th className="pb-2 font-medium">{copy.wordCol}</th>
-              <th className="pb-2 font-medium">{copy.translationCol}</th>
+              <th className="pb-2 font-medium">{copy.meaningCol}</th>
               <th className="pb-2 font-medium">{copy.attemptsCol}</th>
               <th className="pb-2 font-medium">{copy.successCol}</th>
             </tr>
@@ -67,7 +67,7 @@ export default function VocabularyCard({ vocabulary, spelling, copy }: Props) {
             {vocabulary.words.map((word) => (
               <tr key={word.word} className="border-t border-[#efe9df]">
                 <td className="py-2 font-medium text-sh-foreground">{word.word}</td>
-                <td className="py-2 text-sh-muted">{word.translationRu || '—'}</td>
+                <td className="py-2 text-sh-muted">{word.meaningInContext || '—'}</td>
                 <td className="py-2 text-sh-foreground">{word.attempts}</td>
                 <td className="py-2 text-sh-foreground">{word.successes}</td>
               </tr>

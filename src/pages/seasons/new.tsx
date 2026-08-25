@@ -5,7 +5,7 @@ import AppShell from '@/components/layout/AppShell';
 import WizardLayout from '@/components/layout/WizardLayout';
 import WorldCarousel from '@/components/season-setup/WorldCarousel';
 import WorldGrid from '@/components/season-setup/WorldGrid';
-import { Button, Card, Chip } from '@/components/ui';
+import { Button, Card, Chip, ModalOverlay } from '@/components/ui';
 import {
   HERO_TRAIT_OPTIONS,
   LEARNING_THEME_OPTIONS,
@@ -41,6 +41,31 @@ type HeroSeed = {
   appearanceRu?: string;
   descriptionRu?: string;
   description?: string;
+};
+
+type SeasonDraftPayload = {
+  worldId: StoryWorldId | null;
+  learningThemes: string[];
+  tone: string;
+  vocabularyFocus: string[];
+  customIdea: string;
+  heroGender: HeroGender;
+  heroAge: number;
+  heroName: string;
+  heroTraits: string[];
+  heroCompanion: string;
+  heroDescription: string;
+  descriptionSource: 'ai' | 'edited_by_user';
+  descriptionStaleReason: string | null;
+  editingFromReview: WizardStep | null;
+};
+
+type SeasonDraftResponse = {
+  draftId: string;
+  payload: SeasonDraftPayload;
+  step: WizardStep;
+  status: 'active' | 'submitted' | 'abandoned';
+  createdSeasonId?: string | null;
 };
 
 const HERO_GENDER_OPTIONS: { id: HeroGender; label: string }[] = [
@@ -121,6 +146,13 @@ export default function NewSeasonPage() {
   const [heroSeedLoading, setHeroSeedLoading] = useState(false);
   const [childProfile, setChildProfile] = useState<ChildProfile>(DEFAULT_CHILD);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftSaveState, setDraftSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [editingFromReview, setEditingFromReview] = useState<WizardStep | null>(null);
+  const [leaveIntent, setLeaveIntent] = useState<{ href: string; label: string } | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const pageHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   const [worldId, setWorldId] = useState<StoryWorldId | null>('magical_academy');
   const [learningThemes, setLearningThemes] = useState<string[]>(['teamwork']);
@@ -137,6 +169,27 @@ export default function NewSeasonPage() {
   const [descriptionSource, setDescriptionSource] = useState<'ai' | 'edited_by_user'>('ai');
   const [descriptionStaleReason, setDescriptionStaleReason] = useState<string | null>(null);
   const heroSeedRequestIdRef = useRef(0);
+
+  const draftPayload = useMemo<SeasonDraftPayload>(() => ({
+    worldId,
+    learningThemes,
+    tone,
+    vocabularyFocus,
+    customIdea,
+    heroGender,
+    heroAge,
+    heroName,
+    heroTraits,
+    heroCompanion,
+    heroDescription,
+    descriptionSource,
+    descriptionStaleReason,
+    editingFromReview,
+  }), [
+    customIdea, descriptionSource, descriptionStaleReason, heroAge, heroCompanion,
+    heroDescription, heroGender, heroName, heroTraits, learningThemes, tone,
+    vocabularyFocus, worldId, editingFromReview,
+  ]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -166,6 +219,105 @@ export default function NewSeasonPage() {
     };
     loadProfile();
   }, [router]);
+
+  useEffect(() => {
+    if (!profileLoaded) return;
+    let cancelled = false;
+    const returnToReview = router.query.review === '1';
+    const restoreDraft = async () => {
+      try {
+        const response = await apiFetchAsGuest('/seasons/draft/current');
+        const draft = response.ok ? await response.json() as SeasonDraftResponse | null : null;
+        if (cancelled || !draft?.draftId || draft.status !== 'active') return;
+        const saved = draft.payload || {};
+        setDraftId(draft.draftId);
+        setStep(returnToReview ? 3 : Math.min(3, Math.max(1, Number(draft.step) || 1)) as WizardStep);
+        if (saved.worldId) setWorldId(saved.worldId);
+        if (Array.isArray(saved.learningThemes)) setLearningThemes(saved.learningThemes);
+        if (typeof saved.tone === 'string') setTone(saved.tone);
+        if (Array.isArray(saved.vocabularyFocus)) setVocabularyFocus(saved.vocabularyFocus);
+        if (typeof saved.customIdea === 'string') setCustomIdea(saved.customIdea);
+        if (saved.heroGender) setHeroGender(saved.heroGender);
+        if (Number.isFinite(saved.heroAge)) setHeroAge(saved.heroAge);
+        if (typeof saved.heroName === 'string') setHeroName(saved.heroName);
+        if (Array.isArray(saved.heroTraits)) setHeroTraits(saved.heroTraits);
+        if (typeof saved.heroCompanion === 'string') setHeroCompanion(saved.heroCompanion);
+        if (typeof saved.heroDescription === 'string') setHeroDescription(saved.heroDescription);
+        if (saved.descriptionSource) setDescriptionSource(saved.descriptionSource);
+        if (saved.descriptionStaleReason !== undefined) setDescriptionStaleReason(saved.descriptionStaleReason);
+        if (Number(saved.editingFromReview) >= 1 && Number(saved.editingFromReview) <= 3) {
+          setEditingFromReview(Number(saved.editingFromReview) as WizardStep);
+        }
+      } catch {
+        // The wizard remains usable offline or if an older backend is temporarily deployed.
+      } finally {
+        if (!cancelled) setDraftLoaded(true);
+      }
+    };
+    void restoreDraft();
+    return () => { cancelled = true; };
+  }, [profileLoaded, router.query.review]);
+
+  useEffect(() => {
+    if (!draftLoaded || !isDirty || loading) return;
+    const timeout = window.setTimeout(async () => {
+      setDraftSaveState('saving');
+      try {
+        const response = await apiFetchAsGuest('/seasons/draft', {
+          method: 'POST',
+          body: JSON.stringify({ draftId, payload: draftPayload, step }),
+        });
+        if (!response.ok) throw new Error(`Draft save failed (${response.status})`);
+        const saved = await response.json() as SeasonDraftResponse;
+        setDraftId(saved.draftId);
+        setIsDirty(false);
+        setDraftSaveState('saved');
+      } catch {
+        setDraftSaveState('error');
+      }
+    }, 650);
+    return () => window.clearTimeout(timeout);
+  }, [draftId, draftLoaded, draftPayload, isDirty, loading, step]);
+
+  useEffect(() => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty || loading) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [isDirty, loading]);
+
+  useEffect(() => {
+    router.beforePopState(({ as }) => {
+      if (!isDirty || loading) return true;
+      setLeaveIntent({ href: as || '/', label: 'предыдущую страницу' });
+      return false;
+    });
+    return () => router.beforePopState(() => true);
+  }, [isDirty, loading, router]);
+
+  const markDirty = useCallback(() => {
+    setIsDirty(true);
+    setDraftSaveState('idle');
+  }, []);
+
+  const goToStep = useCallback((nextStep: WizardStep, options?: { reviewReturn?: WizardStep | null }) => {
+    setStep(nextStep);
+    setEditingFromReview(options?.reviewReturn || null);
+    markDirty();
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      pageHeadingRef.current?.focus({ preventScroll: true });
+    });
+  }, [markDirty]);
+
+  const requestNavigation = useCallback((href: string) => {
+    if (href.startsWith('/seasons/new') || (!isDirty && draftSaveState !== 'saving')) return true;
+    setLeaveIntent({ href, label: href === '/' ? 'главную страницу' : 'другой раздел' });
+    return false;
+  }, [draftSaveState, isDirty]);
 
   const generateHeroSeed = useCallback(async () => {
     if (!worldId) return;
@@ -220,6 +372,7 @@ export default function NewSeasonPage() {
       setHeroDescription(normalizedDescription);
       setDescriptionSource('ai');
       setDescriptionStaleReason(null);
+      markDirty();
     } catch (requestError) {
       if (requestId !== heroSeedRequestIdRef.current) return;
       setError(requestError instanceof Error
@@ -237,7 +390,7 @@ export default function NewSeasonPage() {
     heroTraits,
     learningThemes,
     tone,
-    vocabularyFocus,
+    vocabularyFocus, markDirty,
     worldId,
   ]);
 
@@ -292,6 +445,14 @@ export default function NewSeasonPage() {
       hero_age: heroAge,
     });
     try {
+      const draftResponse = await apiFetchAsGuest('/seasons/draft', {
+        method: 'POST',
+        body: JSON.stringify({ draftId, payload: draftPayload, step: 3 }),
+      });
+      if (!draftResponse.ok) throw new Error(`Не удалось сохранить черновик (${draftResponse.status})`);
+      const savedDraft = await draftResponse.json() as SeasonDraftResponse;
+      setDraftId(savedDraft.draftId);
+      setIsDirty(false);
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/seasons/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,6 +479,8 @@ export default function NewSeasonPage() {
             companion: heroCompanion || undefined,
             description: heroDescription.trim(),
           },
+          draftId: savedDraft.draftId,
+          idempotencyKey: savedDraft.draftId,
           heroPreferences: {
             preferredName: heroName.trim(),
             heroType: heroGender === 'boy' ? 'young boy hero' : heroGender === 'girl' ? 'young girl hero' : 'young child hero',
@@ -347,13 +510,17 @@ export default function NewSeasonPage() {
     <div className="flex gap-3">
       <Button
         variant="secondary"
-        onClick={() => (step === 1 ? router.push('/') : setStep((step - 1) as WizardStep))}
+        onClick={() => {
+          if (editingFromReview) return goToStep(3);
+          if (step === 1) return setLeaveIntent({ href: '/', label: 'главную страницу' });
+          goToStep((step - 1) as WizardStep);
+        }}
         className="flex-1"
       >
-        {step === 1 ? 'Отмена' : 'Назад'}
+        {editingFromReview ? 'К проверке' : step === 1 ? 'Отмена' : 'Назад'}
       </Button>
       {step < 3 ? (
-        <Button onClick={() => setStep((step + 1) as WizardStep)} disabled={!canGoNext} className="flex-1">
+        <Button onClick={() => goToStep((step + 1) as WizardStep, { reviewReturn: editingFromReview })} disabled={!canGoNext} className="flex-1">
           Далее
         </Button>
       ) : (
@@ -365,17 +532,21 @@ export default function NewSeasonPage() {
   );
 
   const goBackFromWizard = () => {
-    if (step === 1) {
-      router.push('/');
+    if (editingFromReview) {
+      goToStep(3);
       return;
     }
-    setStep((step - 1) as WizardStep);
+    if (step === 1) {
+      setLeaveIntent({ href: '/', label: 'главную страницу' });
+      return;
+    }
+    goToStep((step - 1) as WizardStep);
   };
 
-  if (!profileLoaded) return <AppShell maxWidth="wide" shellVariant="framed"><p className="py-10 text-center text-sm text-sh-muted">Загружаем профиль...</p></AppShell>;
+  if (!profileLoaded || !draftLoaded) return <AppShell maxWidth="wide" shellVariant="framed"><p className="py-10 text-center text-sm text-sh-muted">Загружаем настройки создания...</p></AppShell>;
 
   return (
-    <AppShell maxWidth="wide" showBottomNav={false} showSideNav hasSeasons shellVariant="framed" parentLabel={`${childProfile.name || 'Child'}'s parent`}>
+    <AppShell maxWidth="wide" showBottomNav={false} showSideNav hasSeasons shellVariant="framed" parentLabel={`${childProfile.name || 'Child'}'s parent`} onNavigationAttempt={requestNavigation}>
       <div className="mx-auto max-w-5xl">
         <WizardLayout
           step={step}
@@ -395,6 +566,8 @@ export default function NewSeasonPage() {
           }
           footer={footer}
           onBack={goBackFromWizard}
+          headingRef={pageHeadingRef}
+          draftStatus={draftSaveState}
         >
           {error && (
             <div className="mb-4 rounded-[var(--sh-radius)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -409,15 +582,16 @@ export default function NewSeasonPage() {
                 invalidateHeroSeed();
                 setWorldId(next);
                 markDescriptionStale('world_changed');
+                markDirty();
               }}
               learningThemes={learningThemes}
-              setLearningThemes={setLearningThemes}
+              setLearningThemes={(next) => { setLearningThemes(next); markDirty(); }}
               tone={tone}
-              setTone={setTone}
+              setTone={(next) => { setTone(next); markDirty(); }}
               vocabularyFocus={vocabularyFocus}
-              setVocabularyFocus={setVocabularyFocus}
+              setVocabularyFocus={(next) => { setVocabularyFocus(next); markDirty(); }}
               customIdea={customIdea}
-              setCustomIdea={setCustomIdea}
+              setCustomIdea={(next) => { setCustomIdea(next); markDirty(); }}
               toggleLimited={toggleLimited}
             />
           )}
@@ -429,29 +603,34 @@ export default function NewSeasonPage() {
                 invalidateHeroSeed();
                 setHeroGender(next);
                 markDescriptionStale('gender_changed');
+                markDirty();
               }}
               heroAge={heroAge}
               setHeroAge={(next) => {
                 invalidateHeroSeed();
                 setHeroAge(next);
                 markDescriptionStale('age_changed');
+                markDirty();
               }}
               heroName={heroName}
               setHeroName={(next) => {
                 invalidateHeroSeed();
                 setHeroName(next);
                 markDescriptionStale('name_changed');
+                markDirty();
               }}
               heroTraits={heroTraits}
               setHeroTraits={(next) => {
                 invalidateHeroSeed();
                 setHeroTraits(next);
                 markDescriptionStale('traits_changed');
+                markDirty();
               }}
               heroDescription={heroDescription}
               setHeroDescription={(next) => {
                 setHeroDescription(next);
                 setDescriptionSource('edited_by_user');
+                markDirty();
               }}
               descriptionStaleReason={descriptionStaleReason}
               heroSeedLoading={heroSeedLoading}
@@ -474,10 +653,30 @@ export default function NewSeasonPage() {
               heroTraits={heroTraits}
               heroCompanion={heroCompanion}
               heroDescription={heroDescription}
+              onEditChild={() => {
+                const returnTo = encodeURIComponent(`/seasons/new?review=1`);
+                router.push(`/settings/child-profile?returnTo=${returnTo}`);
+              }}
+              onEditDirection={() => goToStep(1, { reviewReturn: 3 })}
+              onEditHero={() => goToStep(2, { reviewReturn: 3 })}
             />
           )}
         </WizardLayout>
       </div>
+      {leaveIntent && (
+        <ModalOverlay className="items-center justify-center" role="dialog" aria-modal="true" aria-label="Leave season creation">
+          <Card padding="lg" className="w-full max-w-md space-y-4 shadow-[var(--sh-shadow-shell)]">
+            <div>
+              <p className="text-lg font-bold text-sh-foreground">Выйти из создания сезона?</p>
+              <p className="mt-2 text-sm leading-relaxed text-sh-muted">Настройки уже сохранены как черновик. Вы сможете продолжить создание сезона позже.</p>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="secondary" onClick={() => setLeaveIntent(null)}>Остаться</Button>
+              <Button onClick={() => router.push(leaveIntent.href)}>Выйти на {leaveIntent.label}</Button>
+            </div>
+          </Card>
+        </ModalOverlay>
+      )}
     </AppShell>
   );
 }
@@ -686,6 +885,9 @@ function ReviewStep({
   heroTraits,
   heroCompanion,
   heroDescription,
+  onEditChild,
+  onEditDirection,
+  onEditHero,
 }: {
   childProfile: ChildProfile;
   selectedWorld?: { imagePath: string; title: string; shortDescription: string } | null;
@@ -700,6 +902,9 @@ function ReviewStep({
   heroTraits: string[];
   heroCompanion: string;
   heroDescription: string;
+  onEditChild: () => void;
+  onEditDirection: () => void;
+  onEditHero: () => void;
 }) {
   return (
     <div className="grid lg:grid-cols-[1fr_0.9fr] gap-5">
@@ -708,13 +913,15 @@ function ReviewStep({
           icon="👤"
           title="Ребенок"
           actionLabel="Изменить"
-          href="/settings"
+          onAction={onEditChild}
           className="ph-sensitive"
           lines={[`${childProfile.name}, ${childProfile.age} лет · уровень ${childProfile.englishLevel}`]}
         />
         <SummaryCard
           icon="📖"
           title="Направление истории"
+          actionLabel="Изменить"
+          onAction={onEditDirection}
           lines={[
             storyDirectionText,
             learningThemes.length ? `Темы: ${learningThemes.map((item) => optionLabel(LEARNING_THEME_OPTIONS, item)).join(', ')}` : '',
@@ -726,6 +933,8 @@ function ReviewStep({
         <SummaryCard
           icon="☺"
           title="Главный герой"
+          actionLabel="Изменить"
+          onAction={onEditHero}
           lines={[
             `${heroName}, ${heroAge} лет · ${optionLabel(HERO_GENDER_OPTIONS, heroGender)}`,
             `Черты: ${heroTraits.map((item) => optionLabel(heroTraitOptionsForGender(heroGender), item)).join(', ') || 'AI подберет'}`,
@@ -837,6 +1046,7 @@ function SummaryCard({
   lines,
   href,
   actionLabel,
+  onAction,
   className = '',
 }: {
   icon: string;
@@ -844,6 +1054,7 @@ function SummaryCard({
   lines: string[];
   href?: string;
   actionLabel?: string;
+  onAction?: () => void;
   className?: string;
 }) {
   return (
@@ -853,8 +1064,13 @@ function SummaryCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-bold text-sh-foreground">{title}</p>
-            {href && actionLabel && (
+            {actionLabel && href && (
               <Button href={href} variant="secondary" className="!min-h-[28px] h-7 px-2.5 py-0 text-xs">
+                {actionLabel}
+              </Button>
+            )}
+            {actionLabel && !href && onAction && (
+              <Button onClick={onAction} variant="secondary" className="!min-h-[28px] h-7 px-2.5 py-0 text-xs">
                 {actionLabel}
               </Button>
             )}

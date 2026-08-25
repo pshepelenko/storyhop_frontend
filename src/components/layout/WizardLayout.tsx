@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, RefObject } from 'react';
 import { Button } from '@/components/ui';
 
 const STEP_LABELS = ['История', 'Герой', 'Проверка'];
@@ -11,6 +11,8 @@ type WizardLayoutProps = {
   footer?: ReactNode;
   onBack?: () => void;
   backLabel?: string;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  draftStatus?: 'idle' | 'saving' | 'saved' | 'error';
 };
 
 export default function WizardLayout({
@@ -21,6 +23,8 @@ export default function WizardLayout({
   footer,
   onBack,
   backLabel = 'Назад',
+  headingRef,
+  draftStatus = 'idle',
 }: WizardLayoutProps) {
   return (
     <div className="space-y-5">
@@ -64,13 +68,16 @@ export default function WizardLayout({
           })}
         </div>
         <p className="text-xs text-sh-muted font-semibold">Шаг {step} из 3</p>
-        <h1 className="text-xl md:text-2xl font-bold text-sh-foreground mt-1 leading-tight">{title}</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="text-xl md:text-2xl font-bold text-sh-foreground mt-1 leading-tight outline-none">{title}</h1>
         {subtitle && <p className="text-sm text-sh-muted mt-2 leading-relaxed">{subtitle}</p>}
+        <div className="mt-2 min-h-4 text-xs text-sh-muted" aria-live="polite">
+          {draftStatus === 'saving' ? 'Сохраняем черновик...' : draftStatus === 'saved' ? 'Черновик сохранен' : draftStatus === 'error' ? 'Черновик пока не сохранен' : ''}
+        </div>
       </div>
 
       <div>{children}</div>
 
-      {footer && <div className="sticky bottom-0 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 sm:pt-3 sm:pb-0 bg-white/95 border-t border-sh-border sm:static sm:bg-transparent">{footer}</div>}
+      {footer && <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pt-3 sm:pb-0 bg-white/95 border-t border-sh-border sm:static sm:bg-transparent">{footer}</div>}
     </div>
   );
 }

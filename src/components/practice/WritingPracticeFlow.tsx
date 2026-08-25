@@ -62,7 +62,6 @@ export default function WritingPracticeFlow({
   const writingRewardLabel = isRussian ? `До +${possibleReward} кристаллов` : `Up to +${possibleReward} crystals`;
   const revealAnswerLabel = isRussian ? 'Показать ответ - 0 кристаллов' : 'Show answer - 0 crystals';
   const skipNote = isRussian ? 'Можно пропустить и продолжить историю' : 'You can skip this and continue the story';
-  const translationLabel = isRussian ? 'Перевод' : 'Translation';
 
   useEffect(() => {
     const load = async () => {
@@ -318,7 +317,7 @@ export default function WritingPracticeFlow({
           </div>
           <ul className="mx-auto max-w-sm space-y-2 text-sm leading-6 text-sh-foreground sm:text-base">
             <li>• 4 words</li>
-            <li>• {isRussian ? 'Слушай слово и смотри перевод' : 'Listen to the word and see the translation'}</li>
+            <li>• {isRussian ? 'Слушай слово и читай простое объяснение' : 'Listen to the word and read a simple explanation'}</li>
             <li>• {isRussian ? 'Пиши ответ и получай кристаллы' : 'Write the answer and earn crystals'}</li>
             <li>• {revealAnswerLabel}</li>
           </ul>
@@ -386,12 +385,14 @@ export default function WritingPracticeFlow({
         </div>
 
         <div className="text-center text-sm font-medium text-sh-foreground">
-          {isRussian ? 'Послушай слово, посмотри перевод и напиши его по-английски' : 'Listen to the word, check the translation, then write it in English'}
+          {copy.writingPromptExplanation}
         </div>
 
         <div className="rounded-[16px] border border-sh-forest/15 bg-sh-forest-soft/70 px-4 py-2.5 text-center">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-sh-forest">{translationLabel}</div>
-          <div className="mt-1 text-lg font-semibold text-sh-foreground">{activeWord.translationRu}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-sh-forest">{copy.explanationLabel}</div>
+          <div className="mt-1 text-base font-semibold leading-relaxed text-sh-foreground">
+            {activeWord.meaningInContext || copy.explanationUnavailable}
+          </div>
         </div>
 
         <Card className="relative flex min-h-[112px] items-center justify-center overflow-hidden rounded-[18px] border-sh-border/70 px-4 py-3 text-center shadow-none sm:min-h-[148px] sm:py-5">

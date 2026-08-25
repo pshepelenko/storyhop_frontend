@@ -61,14 +61,12 @@ type EpisodeData = {
   introOptionsPhrase: string;
   highlightedVocabulary: {
     term: string;
-    translationRu: string;
     meaningInContext: string;
     exposureType: string;
   }[];
   choices: {
     id: string;
     text: string;
-    translationRu: string;
     choiceType: string;
     crystalReward: number;
     expectedStateDiff?: {

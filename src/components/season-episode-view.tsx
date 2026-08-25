@@ -26,13 +26,12 @@ interface AudioChunk {
 
 interface VocabWord {
   term: string;
-  translationRu?: string;
+  meaningInContext?: string;
 }
 
 interface Choice {
   id: string;
   text: string;
-  translationRu?: string;
   choiceType?: string;
   crystalReward?: number;
 }
@@ -402,9 +401,17 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
       )}
 
       <div className="mb-6">
-        <p className={`font-story leading-relaxed whitespace-pre-line text-sh-foreground ${readingTextSize === 'small' ? 'text-sm' : readingTextSize === 'large' ? 'text-lg' : 'text-base'}`}>
+        <div className={`font-story leading-relaxed whitespace-pre-line text-sh-foreground ${readingTextSize === 'small' ? 'text-sm' : readingTextSize === 'large' ? 'text-lg' : 'text-base'}`}>
           <VocabHighlightText text={chapterText} vocabulary={highlightedVocabulary} />
-        </p>
+        </div>
+
+        {highlightedVocabulary && highlightedVocabulary.length > 0 && (
+          <VocabPracticeRow
+            words={highlightedVocabulary}
+            title={uiLanguage === 'russian' ? 'Слова из этой главы' : 'Words from this chapter'}
+            className="mt-5"
+          />
+        )}
 
         {displayedSpeakingPrompt && (
           <Card className="mt-5 border-[color:var(--sh-lavender)]/20 bg-[color:var(--sh-lavender)]/5">
@@ -447,10 +454,6 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
 
         {bonusPracticeLauncher}
       </div>
-
-      {highlightedVocabulary && highlightedVocabulary.length > 0 && (
-        <VocabPracticeRow words={highlightedVocabulary} className="mb-6" />
-      )}
 
       {episodeIllustration && (
         <div className="mb-6 overflow-hidden rounded-[var(--sh-radius-lg)] border border-sh-border bg-white">
