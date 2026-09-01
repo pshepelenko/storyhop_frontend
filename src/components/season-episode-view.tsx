@@ -48,6 +48,7 @@ interface EpisodeIllustration {
   status?: string;
   imageUrl?: string | null;
   unlockCost?: number;
+  crystalBalance?: number;
   hasEnoughCrystals?: boolean;
   phase?: 'generating' | 'insufficient_crystals' | 'unlockable' | 'failed';
 }

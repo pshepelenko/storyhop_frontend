@@ -344,8 +344,8 @@ export default function SeasonPage() {
         illustrationGeneratingTitle: 'Создаём иллюстрацию',
         illustrationGeneratingBody: 'Подождите немного — рисуем сцену для этой главы.',
         illustrationInsufficientTitle: 'Нужно больше кристаллов',
-        illustrationInsufficientBody: (cost: number) =>
-          `Чтобы открыть иллюстрацию, нужно ${cost} кристалла. Их можно получить за прохождение главы, голосовую практику и приглашение друга.`,
+        illustrationInsufficientBody: (cost: number, balance: number) =>
+          `Сейчас у вас ${balance} из ${cost} кристаллов. Их можно получить за прохождение главы, голосовую практику и приглашение друга.`,
         illustrationUnlockableTitle: 'Можно создать иллюстрацию',
         illustrationUnlockableBody: 'Нажмите «Создать», чтобы нарисовать сцену этой главы.',
         illustrationFailedTitle: 'Не удалось создать иллюстрацию',
@@ -370,8 +370,8 @@ export default function SeasonPage() {
         illustrationGeneratingTitle: 'Creating illustration',
         illustrationGeneratingBody: 'Please wait while we paint the scene for this chapter.',
         illustrationInsufficientTitle: 'Not enough crystals',
-        illustrationInsufficientBody: (cost: number) =>
-          `Unlocking this illustration costs ${cost} crystals. Earn them by finishing chapters, voice practice, and inviting a friend.`,
+        illustrationInsufficientBody: (cost: number, balance: number) =>
+          `You have ${balance} of ${cost} crystals. Earn more by finishing chapters, voice practice, and inviting a friend.`,
         illustrationUnlockableTitle: 'Illustration ready to create',
         illustrationUnlockableBody: 'Tap Create to paint the scene for this chapter.',
         illustrationFailedTitle: 'Could not create illustration',
@@ -1166,6 +1166,7 @@ export default function SeasonPage() {
           status: illustrationStatus,
           imageUrl: activeIllustration?.imageUrl || null,
           unlockCost: ILLUSTRATION_UNLOCK_COST,
+          crystalBalance: season.crystalWallet?.balance || 0,
           hasEnoughCrystals: hasEnoughCrystalsForIllustration,
           phase: getIllustrationPlaceholderPhase({
             status: illustrationStatus,
@@ -1317,7 +1318,10 @@ export default function SeasonPage() {
               generatingTitle: ui.illustrationGeneratingTitle,
               generatingBody: ui.illustrationGeneratingBody,
               insufficientTitle: ui.illustrationInsufficientTitle,
-              insufficientBody: ui.illustrationInsufficientBody(ILLUSTRATION_UNLOCK_COST),
+              insufficientBody: ui.illustrationInsufficientBody(
+                ILLUSTRATION_UNLOCK_COST,
+                activeEpisodeIllustration?.crystalBalance || 0,
+              ),
               unlockableTitle: ui.illustrationUnlockableTitle,
               unlockableBody: ui.illustrationUnlockableBody,
               failedTitle: ui.illustrationFailedTitle,
