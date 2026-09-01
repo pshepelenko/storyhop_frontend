@@ -3,6 +3,12 @@ import type { ReactNode } from 'react';
 import EpisodeReaderHeader from '@/components/episode/EpisodeReaderHeader';
 import { useReadingTextSize } from '@/lib/use-reading-text-size';
 import { useUiLanguage } from '@/lib/use-ui-language';
+import { captureAnalyticsEvent } from '@/lib/analytics';
+import {
+  getSpeechRecognitionErrorMessage,
+  startEnglishSpeechRecognition,
+  type SpeechRecognitionErrorCode,
+} from '@/lib/speech-recognition';
 import { imageAssets } from '@/data/image-assets';
 import {
   Button,
@@ -53,30 +59,6 @@ interface StoryIntro {
   imageUrl?: string | null;
 }
 
-type SpeechRecognitionResultEventLike = {
-  results?: {
-    [index: number]: {
-      [index: number]: {
-        transcript?: string;
-      };
-    };
-  };
-};
-
-type SpeechRecognitionLike = {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onstart?: (() => void) | null;
-  onend?: (() => void) | null;
-  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
-  onerror: ((event?: { error?: string }) => void) | null;
-  start: () => void;
-  stop?: () => void;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
 const INLINE_SPEAKING_COPY = {
   english: {
     label: 'Speaking',
@@ -87,7 +69,6 @@ const INLINE_SPEAKING_COPY = {
     listeningHelp: 'Start speaking now. The line will be sent automatically when we hear you.',
     checkingHelp: 'Got it. Checking your phrase...',
     heard: 'Heard:',
-    unsupported: 'Speech recognition is not available in this browser.',
   },
   russian: {
     label: 'Говорим',
@@ -98,7 +79,6 @@ const INLINE_SPEAKING_COPY = {
     listeningHelp: 'Говорите сейчас. Мы автоматически проверим фразу, когда услышим её.',
     checkingHelp: 'Поняли. Проверяем фразу...',
     heard: 'Система распознала:',
-    unsupported: 'Распознавание речи недоступно в этом браузере.',
   },
 } as const;
 
@@ -214,6 +194,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   const [confirmingChoiceId, setConfirmingChoiceId] = useState<string | null>(null);
   const [chapterAutoplayToken, setChapterAutoplayToken] = useState<string | null>(null);
   const [speechPhase, setSpeechPhase] = useState<'idle' | 'listening' | 'checking' | 'unsupported'>('idle');
+  const [speechError, setSpeechError] = useState<SpeechRecognitionErrorCode | null>(null);
   const [heardTranscript, setHeardTranscript] = useState('');
   const displayedSpeakingPrompt = speakingPrompt
     ?.trim()
@@ -264,37 +245,29 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
     : `waiting:${episodeNumber}:parts`;
 
   const startVoiceAttempt = (targetPhrase: string) => {
-    const browserWindow = window as unknown as {
-      SpeechRecognition?: SpeechRecognitionConstructor;
-      webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    };
-    const Recognition = browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      setSpeechPhase('unsupported');
-      return;
-    }
-
-    const recognition = new Recognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onstart = () => {
-      setHeardTranscript('');
-      setSpeechPhase('listening');
-    };
-    recognition.onresult = (event: SpeechRecognitionResultEventLike) => {
-      const transcript = event?.results?.[0]?.[0]?.transcript || '';
-      setHeardTranscript(transcript);
-      setSpeechPhase('checking');
-      onVoiceAttempt(targetPhrase, transcript);
-    };
-    recognition.onerror = () => {
-      setSpeechPhase('idle');
-    };
-    recognition.onend = () => {
-      setSpeechPhase((current) => (current === 'listening' ? 'idle' : current));
-    };
-    recognition.start();
+    setSpeechError(null);
+    setSpeechPhase('idle');
+    captureAnalyticsEvent('speaking_recognition_requested', { source: 'inline' });
+    startEnglishSpeechRecognition({
+      onStart: () => {
+        setHeardTranscript('');
+        setSpeechPhase('listening');
+        captureAnalyticsEvent('speaking_recognition_started', { source: 'inline' });
+      },
+      onResult: (transcript) => {
+        setHeardTranscript(transcript);
+        setSpeechPhase('checking');
+        onVoiceAttempt(targetPhrase, transcript);
+      },
+      onError: (code) => {
+        setSpeechError(code);
+        setSpeechPhase(code === 'unsupported' ? 'unsupported' : 'idle');
+        captureAnalyticsEvent('speaking_recognition_failed', { source: 'inline', error_code: code });
+      },
+      onEnd: () => {
+        setSpeechPhase((current) => (current === 'listening' ? 'idle' : current));
+      },
+    });
   };
 
   useEffect(() => {
@@ -307,6 +280,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
 
   useEffect(() => {
     setSpeechPhase('idle');
+    setSpeechError(null);
     setHeardTranscript('');
   }, [episodeId]);
 
@@ -400,18 +374,18 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
         </div>
       )}
 
+      {highlightedVocabulary && highlightedVocabulary.length > 0 && (
+        <VocabPracticeRow
+          words={highlightedVocabulary}
+          title={uiLanguage === 'russian' ? 'Слова из этой главы' : 'Words from this chapter'}
+          className="mb-5"
+        />
+      )}
+
       <div className="mb-6">
         <div className={`font-story leading-relaxed whitespace-pre-line text-sh-foreground ${readingTextSize === 'small' ? 'text-sm' : readingTextSize === 'large' ? 'text-lg' : 'text-base'}`}>
           <VocabHighlightText text={chapterText} vocabulary={highlightedVocabulary} />
         </div>
-
-        {highlightedVocabulary && highlightedVocabulary.length > 0 && (
-          <VocabPracticeRow
-            words={highlightedVocabulary}
-            title={uiLanguage === 'russian' ? 'Слова из этой главы' : 'Words from this chapter'}
-            className="mt-5"
-          />
-        )}
 
         {displayedSpeakingPrompt && (
           <Card className="mt-5 border-[color:var(--sh-lavender)]/20 bg-[color:var(--sh-lavender)]/5">
@@ -441,8 +415,10 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
             {heardTranscript && (
               <div className="ph-sensitive mt-2 text-xs text-sh-muted">{inlineSpeakingCopy.heard} &quot;{heardTranscript}&quot;</div>
             )}
-            {speechPhase === 'unsupported' && (
-              <div className="mt-3 text-xs text-red-600">{inlineSpeakingCopy.unsupported}</div>
+            {speechError && (
+              <div className="mt-3 text-xs text-red-600" role="status">
+                {getSpeechRecognitionErrorMessage(speechError, uiLanguage)}
+              </div>
             )}
             {voiceFeedback && (
               <div className={`mt-2 text-xs ${voiceFeedback.tone === 'success' ? 'text-[color:var(--sh-lavender)]' : voiceFeedback.tone === 'error' ? 'text-red-600' : 'text-sh-muted'}`}>

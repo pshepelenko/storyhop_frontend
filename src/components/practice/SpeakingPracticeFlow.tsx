@@ -13,30 +13,12 @@ import {
 } from '@/lib/bonus-practice';
 import { getUiLanguage } from '@/lib/ui-language';
 import { captureAnalyticsEvent } from '@/lib/analytics';
+import {
+  getSpeechRecognitionErrorMessage,
+  startEnglishSpeechRecognition,
+  type SpeechRecognitionErrorCode,
+} from '@/lib/speech-recognition';
 import PracticeScaffold from './PracticeScaffold';
-
-type SpeechRecognitionResultEventLike = {
-  results?: {
-    [index: number]: {
-      [index: number]: {
-        transcript?: string;
-      };
-    };
-  };
-};
-
-type SpeechRecognitionLike = {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onstart?: (() => void) | null;
-  onend?: (() => void) | null;
-  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
-  onerror: ((event?: { error?: string }) => void) | null;
-  start: () => void;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 type SpeakingPracticeFlowProps = {
   seasonId: string;
@@ -64,6 +46,7 @@ export default function SpeakingPracticeFlow({
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [speechPhase, setSpeechPhase] = useState<'idle' | 'listening' | 'checking' | 'unsupported'>('idle');
+  const [speechError, setSpeechError] = useState<SpeechRecognitionErrorCode | null>(null);
   const [heardTranscript, setHeardTranscript] = useState('');
   const [earned, setEarned] = useState(0);
   const [successfulSteps, setSuccessfulSteps] = useState<number[]>([]);
@@ -122,6 +105,7 @@ export default function SpeakingPracticeFlow({
     if (isRecap && payload?.items && activeIndex < payload.items.length - 1) {
       setActiveIndex((current) => current + 1);
       setSpeechPhase('idle');
+      setSpeechError(null);
       setHeardTranscript('');
       return;
     }
@@ -132,66 +116,57 @@ export default function SpeakingPracticeFlow({
   };
 
   const startRecognition = () => {
-    const browserWindow = window as unknown as {
-      SpeechRecognition?: SpeechRecognitionConstructor;
-      webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    };
-    const Recognition = browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      setSpeechPhase('unsupported');
-      return;
-    }
-
-    const recognition = new Recognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onstart = () => {
-      setSpeechPhase('listening');
-      setHeardTranscript('');
-      setError(null);
-    };
-    recognition.onerror = () => {
-      setSpeechPhase('idle');
-      setError(copy.tryAgain);
-    };
-    recognition.onend = () => {
-      setSpeechPhase((current) => (current === 'listening' ? 'idle' : current));
-    };
-    recognition.onresult = async (event: SpeechRecognitionResultEventLike) => {
-      const transcript = event?.results?.[0]?.[0]?.transcript || '';
-      setHeardTranscript(transcript);
-      setSpeechPhase('checking');
-      try {
-        const result = await apiPost<{
-          success: boolean;
-          status: string;
-          crystalsAwarded: number;
-        }>(`/seasons/${seasonId}/bonus-practice/speaking/attempt`, {
-          origin,
-          itemId: activeItem?.itemId || undefined,
-          episodeId: activeItem?.episodeId || undefined,
-          targetPhrase: activeItem?.phraseText || '',
-          transcript,
-        });
-        if (result.status === 'awarded' || result.status === 'already_awarded') {
-          captureAnalyticsEvent('speaking_practice_succeeded', {
+    setSpeechError(null);
+    setError(null);
+    setSpeechPhase('idle');
+    captureAnalyticsEvent('speaking_recognition_requested', { source: origin });
+    startEnglishSpeechRecognition({
+      onStart: () => {
+        setSpeechPhase('listening');
+        setHeardTranscript('');
+        captureAnalyticsEvent('speaking_recognition_started', { source: origin });
+      },
+      onResult: async (transcript) => {
+        setHeardTranscript(transcript);
+        setSpeechPhase('checking');
+        try {
+          const result = await apiPost<{
+            success: boolean;
+            status: string;
+            crystalsAwarded: number;
+          }>(`/seasons/${seasonId}/bonus-practice/speaking/attempt`, {
             origin,
-            crystals_awarded: result.crystalsAwarded || 0,
+            itemId: activeItem?.itemId || undefined,
+            episodeId: activeItem?.episodeId || undefined,
+            targetPhrase: activeItem?.phraseText || '',
+            transcript,
           });
-          await moveToNext(result.crystalsAwarded || 0);
-        } else {
-          captureAnalyticsEvent('speaking_practice_not_matched', { origin });
+          if (result.status === 'awarded' || result.status === 'already_awarded') {
+            captureAnalyticsEvent('speaking_practice_succeeded', {
+              origin,
+              crystals_awarded: result.crystalsAwarded || 0,
+            });
+            await moveToNext(result.crystalsAwarded || 0);
+          } else {
+            captureAnalyticsEvent('speaking_practice_not_matched', { origin });
+            setSpeechPhase('idle');
+            setError(copy.lineNotMatched);
+          }
+        } catch (submitError) {
+          console.error(submitError);
           setSpeechPhase('idle');
-          setError(copy.lineNotMatched);
+          setError(copy.tryAgain);
         }
-      } catch (submitError) {
-        console.error(submitError);
-        setSpeechPhase('idle');
-        setError(copy.tryAgain);
-      }
-    };
-    recognition.start();
+      },
+      onError: (code) => {
+        setSpeechError(code);
+        setSpeechPhase(code === 'unsupported' ? 'unsupported' : 'idle');
+        captureAnalyticsEvent('speaking_recognition_failed', { source: origin, error_code: code });
+      },
+      onEnd: () => {
+        setSpeechPhase((current) => (current === 'listening' ? 'idle' : current));
+      },
+    });
   };
 
   const skip = async () => {
@@ -464,14 +439,14 @@ export default function SpeakingPracticeFlow({
         </div>
 
         <div className="min-h-[76px]" aria-live="polite">
-          {(heardTranscript || error || speechPhase === 'unsupported') && (
+          {(heardTranscript || error || speechError) && (
             <div className="space-y-2 rounded-[18px] border border-sh-border bg-sh-border-subtle/60 px-4 py-3 text-sm">
               {heardTranscript && (
                 <p className="ph-sensitive text-sh-muted">
                   {copy.transcript}: &quot;{heardTranscript}&quot;
                 </p>
               )}
-              {speechPhase === 'unsupported' && <p className="text-red-600">{copy.unsupported}</p>}
+              {speechError && <p className="text-red-600">{getSpeechRecognitionErrorMessage(speechError, language)}</p>}
               {error && <p className="text-red-600">{error}</p>}
             </div>
           )}

@@ -217,6 +217,11 @@ export default function DemoStoryPage() {
               status={chapterAudioUrl ? 'ready' : 'missing'}
             />
 
+            <VocabPracticeRow
+              words={currentNode.highlightedVocabulary}
+              title={lang === 'russian' ? 'Слова из этой главы' : 'Words from this chapter'}
+            />
+
             <Card padding="lg" className="bg-white">
               <div className="font-story text-lg sm:text-xl leading-9 text-sh-foreground whitespace-pre-line">
                 <VocabHighlightText
@@ -225,11 +230,6 @@ export default function DemoStoryPage() {
                 />
               </div>
             </Card>
-
-            <VocabPracticeRow
-              words={currentNode.highlightedVocabulary}
-              title={lang === 'russian' ? 'Слова из этой главы' : 'Words from this chapter'}
-            />
 
             <section className="overflow-hidden rounded-[var(--sh-radius-lg)] border border-sh-border bg-white shadow-[var(--sh-shadow-card)]">
               {currentNode.imageUrl ? (

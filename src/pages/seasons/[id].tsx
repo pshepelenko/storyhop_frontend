@@ -742,30 +742,36 @@ export default function SeasonPage() {
       return;
     }
 
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-      setInviteError(ui.inviteError);
-      return;
-    }
-
     setInviteLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/referrals`, {
+      const response = await apiFetchAsGuest('/referrals', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}`);
+        captureAnalyticsEvent('referral_invite_link_failed', {
+          source: 'season_modal',
+          status: response.status,
+        });
+        setInviteError(ui.inviteError);
+        return;
       }
 
       const data = await response.json();
-      setInviteLink(data.inviteLink || '');
-    } catch (error) {
-      console.error(error);
+      if (typeof data.inviteLink !== 'string' || !data.inviteLink) {
+        captureAnalyticsEvent('referral_invite_link_failed', {
+          source: 'season_modal',
+          status: response.status,
+        });
+        setInviteError(ui.inviteError);
+        return;
+      }
+      setInviteLink(data.inviteLink);
+    } catch {
+      captureAnalyticsEvent('referral_invite_link_failed', {
+        source: 'season_modal',
+        status: null,
+      });
       setInviteError(ui.inviteError);
     } finally {
       setInviteLoading(false);

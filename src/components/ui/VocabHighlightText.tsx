@@ -13,51 +13,117 @@ type VocabHighlightTextProps = {
   className?: string;
 };
 
+type VocabMatch = {
+  entry: VocabWord;
+  start: number;
+  end: number;
+};
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function inflectionPattern(word: string) {
+  if (!/^[a-z]+$/i.test(word)) return escapeRegex(word);
+
+  const normalized = word.toLowerCase();
+  const forms = new Set([normalized]);
+  const endsWithConsonantY = /[^aeiou]y$/.test(normalized);
+  const endsWithEs = /(s|x|z|ch|sh)$/.test(normalized);
+
+  if (endsWithConsonantY) {
+    const stem = normalized.slice(0, -1);
+    forms.add(`${stem}ies`);
+    forms.add(`${stem}ied`);
+    forms.add(`${normalized}ing`);
+  } else {
+    forms.add(endsWithEs ? `${normalized}es` : `${normalized}s`);
+    if (normalized.endsWith('e')) {
+      forms.add(`${normalized}d`);
+      forms.add(`${normalized.slice(0, -1)}ing`);
+    } else {
+      forms.add(`${normalized}ed`);
+      forms.add(`${normalized}ing`);
+    }
+  }
+
+  // Covers common CVC verbs such as stop -> stopped/stopping without a language service.
+  if (/[^aeiou][aeiou][^aeiou]$/.test(normalized) && !/[wxy]$/.test(normalized)) {
+    const finalLetter = normalized[normalized.length - 1];
+    forms.add(`${normalized}${finalLetter}ed`);
+    forms.add(`${normalized}${finalLetter}ing`);
+  }
+
+  return Array.from(forms)
+    .sort((left, right) => right.length - left.length)
+    .map(escapeRegex)
+    .join('|');
+}
+
+function entryPattern(entry: VocabWord) {
+  const words = entry.term.match(/[a-z]+(?:[-'’][a-z]+)*/gi) || [];
+  if (!words.length) return null;
+
+  return words.map(inflectionPattern).join('\\s+');
+}
+
+export function findVocabularyMatches(text: string, vocabulary: VocabWord[]): VocabMatch[] {
+  const candidates: VocabMatch[] = [];
+
+  for (const entry of vocabulary) {
+    if (!entry.term?.trim() || !entry.meaningInContext?.trim()) continue;
+    const pattern = entryPattern(entry);
+    if (!pattern) continue;
+
+    const regex = new RegExp(`\\b(?:${pattern})\\b`, 'gi');
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      candidates.push({ entry, start: match.index, end: regex.lastIndex });
+    }
+  }
+
+  candidates.sort((left, right) =>
+    left.start - right.start || right.end - right.start - (left.end - left.start),
+  );
+
+  const accepted: VocabMatch[] = [];
+  let previousEnd = 0;
+  for (const candidate of candidates) {
+    if (candidate.start < previousEnd) continue;
+    accepted.push(candidate);
+    previousEnd = candidate.end;
+  }
+
+  return accepted;
+}
+
 function highlightVocab(
   text: string,
   vocab: VocabWord[],
   onSelect: (word: VocabWord) => void,
 ): React.ReactNode[] {
-  if (!vocab.length) return [text];
-  const terms = vocab
-    .filter((v) => v.meaningInContext?.trim())
-    .map((v) => v.term.toLowerCase())
-    .filter(Boolean);
-  if (!terms.length) return [text];
+  const matches = findVocabularyMatches(text, vocab);
+  if (!matches.length) return [text];
 
-  const pattern = terms
-    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .sort((a, b) => b.length - a.length)
-    .join('|');
-
-  const regex = new RegExp(`\\b(${pattern})\\b`, 'gi');
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
+  for (const match of matches) {
+    if (match.start > lastIndex) {
+      parts.push(text.slice(lastIndex, match.start));
     }
-    const matchedWord = match[0];
-    const vocabEntry = vocab.find((v) => v.term.toLowerCase() === matchedWord.toLowerCase());
-    if (!vocabEntry?.meaningInContext?.trim()) {
-      parts.push(matchedWord);
-      lastIndex = regex.lastIndex;
-      continue;
-    }
+    const matchedWord = text.slice(match.start, match.end);
     parts.push(
       <button
         type="button"
-        key={`hl-${match.index}`}
+        key={`hl-${match.start}`}
         className="inline rounded bg-sh-forest-soft px-0.5 font-medium text-sh-forest underline decoration-sh-forest/40 underline-offset-2"
-        onClick={() => onSelect(vocabEntry)}
+        onClick={() => onSelect(match.entry)}
         aria-label={`Explain ${matchedWord}`}
       >
         {matchedWord}
       </button>,
     );
-    lastIndex = regex.lastIndex;
+    lastIndex = match.end;
   }
   if (lastIndex < text.length) {
     parts.push(text.slice(lastIndex));
