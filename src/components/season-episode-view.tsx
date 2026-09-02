@@ -50,7 +50,7 @@ interface EpisodeIllustration {
   unlockCost?: number;
   crystalBalance?: number;
   hasEnoughCrystals?: boolean;
-  phase?: 'generating' | 'insufficient_crystals' | 'unlockable' | 'failed';
+  phase?: 'queued' | 'generating' | 'insufficient_crystals' | 'unlockable' | 'failed';
 }
 
 interface StoryIntro {
@@ -111,6 +111,8 @@ interface SeasonEpisodeViewProps {
   backHref?: string;
   confirmLabel?: string;
   illustrationPlaceholderCopy?: {
+    queuedTitle: string;
+    queuedBody: string;
     generatingTitle: string;
     generatingBody: string;
     insufficientTitle: string;
@@ -445,7 +447,9 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
               const phase = episodeIllustration.phase || 'insufficient_crystals';
               const copy = illustrationPlaceholderCopy;
               const panelTitle =
-                phase === 'generating'
+                phase === 'queued'
+                  ? copy?.queuedTitle || 'Illustration is queued'
+                  : phase === 'generating'
                   ? copy?.generatingTitle || 'Creating illustration'
                   : phase === 'failed'
                     ? copy?.failedTitle || 'Could not create illustration'
@@ -453,7 +457,9 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                       ? copy?.unlockableTitle || 'Illustration ready to create'
                       : copy?.insufficientTitle || 'Not enough crystals';
               const body =
-                phase === 'generating'
+                phase === 'queued'
+                  ? copy?.queuedBody || 'This scene is waiting for its turn to be painted.'
+                  : phase === 'generating'
                   ? copy?.generatingBody || 'Please wait while we paint the scene for this chapter.'
                   : phase === 'failed'
                     ? copy?.failedBody || 'Try again in a moment.'
@@ -461,7 +467,9 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                       ? copy?.unlockableBody || 'Tap Create to paint the scene for this chapter.'
                       : copy?.insufficientBody || '';
               const panelClass =
-                phase === 'generating'
+                phase === 'queued'
+                  ? 'border-b border-sh-border bg-amber-50 px-4 py-5 text-sm text-amber-900'
+                  : phase === 'generating'
                   ? 'border-b border-sh-border bg-sky-50 px-4 py-5 text-sm text-sky-950'
                   : phase === 'failed'
                     ? 'border-b border-sh-border bg-red-50 px-4 py-5 text-sm text-red-950'
@@ -484,11 +492,11 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                   )}
                   <div className="font-semibold">{panelTitle}</div>
                   <div className="mt-1">{body}</div>
-                  {phase === 'generating' && (
+                  {(phase === 'queued' || phase === 'generating') && (
                     <div className="mt-3 h-5 w-5 animate-spin rounded-full border-2 border-sh-forest border-t-transparent" />
                   )}
                   {((phase === 'unlockable' && episodeIllustration.hasEnoughCrystals && showManualIllustrationCreate) ||
-                    (phase !== 'generating' && episodeIllustration.hasEnoughCrystals && storybookHref)) && (
+                    (!['queued', 'generating'].includes(phase) && episodeIllustration.hasEnoughCrystals && storybookHref)) && (
                     <div className="mt-3 flex flex-wrap gap-3">
                       {phase === 'unlockable' && episodeIllustration.hasEnoughCrystals && showManualIllustrationCreate && (
                         <Button

@@ -91,6 +91,7 @@ type EpisodeData = {
 
 type GenerationJob = {
   jobId: string;
+  episodeId?: string | null;
   jobType: string;
   status: string;
   payload: {
@@ -254,14 +255,15 @@ const emptyHeroPreferences = {
   accessory: 'satchel',
 };
 const ILLUSTRATION_UNLOCK_COST = 3;
-const ILLUSTRATION_GENERATING_STATUSES = new Set(['queued', 'pending', 'processing']);
+const ILLUSTRATION_QUEUED_STATUSES = new Set(['queued', 'pending']);
 
-type IllustrationPlaceholderPhase = 'generating' | 'insufficient_crystals' | 'unlockable' | 'failed';
+type IllustrationPlaceholderPhase = 'queued' | 'generating' | 'insufficient_crystals' | 'unlockable' | 'failed';
 
 const getIllustrationPlaceholderPhase = (input: {
   status?: string;
   hasEnoughCrystals: boolean;
   hasActiveImageJob: boolean;
+  imageJobStatus?: string | null;
 }): IllustrationPlaceholderPhase => {
   const status = input.status || 'locked';
   if (status === 'skipped_insufficient_crystals') {
@@ -270,7 +272,13 @@ const getIllustrationPlaceholderPhase = (input: {
   if (status === 'failed') {
     return 'failed';
   }
-  if (input.hasActiveImageJob || ILLUSTRATION_GENERATING_STATUSES.has(status)) {
+  if (input.imageJobStatus === 'pending') {
+    return 'queued';
+  }
+  if (ILLUSTRATION_QUEUED_STATUSES.has(status)) {
+    return 'queued';
+  }
+  if (input.hasActiveImageJob || status === 'processing') {
     return 'generating';
   }
   if (!input.hasEnoughCrystals && status === 'locked') {
@@ -341,6 +349,8 @@ export default function SeasonPage() {
         close: 'Закрыть',
         inviteHint: 'За приглашенного друга начисляется 10 кристаллов.',
         inviteError: 'Не удалось создать ссылку приглашения.',
+        illustrationQueuedTitle: 'Иллюстрация в очереди',
+        illustrationQueuedBody: 'Сцена ожидает начала рисования.',
         illustrationGeneratingTitle: 'Создаём иллюстрацию',
         illustrationGeneratingBody: 'Подождите немного — рисуем сцену для этой главы.',
         illustrationInsufficientTitle: 'Нужно больше кристаллов',
@@ -367,6 +377,8 @@ export default function SeasonPage() {
         close: 'Close',
         inviteHint: 'Inviting a friend gives you 10 crystals.',
         inviteError: 'Could not create an invite link.',
+        illustrationQueuedTitle: 'Illustration is queued',
+        illustrationQueuedBody: 'This scene is waiting for its turn to be painted.',
         illustrationGeneratingTitle: 'Creating illustration',
         illustrationGeneratingBody: 'Please wait while we paint the scene for this chapter.',
         illustrationInsufficientTitle: 'Not enough crystals',
@@ -817,23 +829,7 @@ export default function SeasonPage() {
 
       const seasonData = await response.json();
       setSeason(seasonData);
-
-      const processResponse = await fetch(`${API_BASE_URL}/seasons/${id}/jobs/process`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          limit: 1,
-          jobType: 'image_generation',
-        }),
-      });
-
-      if (processResponse.ok) {
-        const processData = await processResponse.json();
-        setSeason(processData.season);
-      }
-      captureAnalyticsEvent('illustration_generation_started');
+      captureAnalyticsEvent('illustration_generation_queued');
 
       if (navigatedEpisodeNumber) {
         await fetchSeason(String(id), navigatedEpisodeNumber);
@@ -1013,19 +1009,7 @@ export default function SeasonPage() {
         (chunk) => ['pending', 'queued', 'processing'].includes(chunk.status) && !chunk.audioUrl,
       ),
     );
-    const activeStorybookEntry =
-      season.storybook?.entries?.find((entry) => entry.episodeId === activeEpisode.episodeId && entry.entryType === 'episode_illustration') || null;
-    const activeIllustration =
-      activeStorybookEntry
-        ? season.storybook?.illustrations?.find((illustration) => illustration.illustrationId === activeStorybookEntry.illustrationId) || null
-        : null;
-    const hasRecoverableIllustrationGap = Boolean(
-      activeEpisode.illustrationCandidate?.shouldGenerate &&
-      (season.crystalWallet?.balance || 0) >= ILLUSTRATION_UNLOCK_COST &&
-      (!activeIllustration?.imageUrl || ['failed', 'pending', 'queued', 'processing'].includes(String(activeIllustration?.status || activeStorybookEntry?.status || ''))),
-    );
-
-    if (!hasPendingAudio && !hasRecoverableIllustrationGap) {
+    if (!hasPendingAudio) {
       return;
     }
 
@@ -1172,6 +1156,7 @@ export default function SeasonPage() {
             status: illustrationStatus,
             hasEnoughCrystals: hasEnoughCrystalsForIllustration,
             hasActiveImageJob: Boolean(activePreparedImageJob || activeImageJob),
+            imageJobStatus: activeImageJob?.status || activePreparedImageJob?.status || null,
           }),
         }
       : null;
@@ -1315,6 +1300,8 @@ export default function SeasonPage() {
             backHref={`/seasons/${season.seasonId}/storybook`}
             confirmLabel={ui.confirmChoice}
             illustrationPlaceholderCopy={{
+              queuedTitle: ui.illustrationQueuedTitle,
+              queuedBody: ui.illustrationQueuedBody,
               generatingTitle: ui.illustrationGeneratingTitle,
               generatingBody: ui.illustrationGeneratingBody,
               insufficientTitle: ui.illustrationInsufficientTitle,
