@@ -383,7 +383,9 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                 aria-label={speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : speakingRecorder.phase === 'checking' || voiceLoadingPhrase === displayedSpeakingPrompt ? inlineSpeakingCopy.checking : inlineSpeakingCopy.start}
                 title={speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : inlineSpeakingCopy.start}
               >
-                <MicrophoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />
+                {speakingRecorder.phase === 'recording'
+                  ? <span className="h-5 w-5 rounded-[4px] bg-current" aria-hidden="true" />
+                  : <MicrophoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />}
               </Button>
             </div>
             {speakingRecorder.phase === 'requesting' && (
