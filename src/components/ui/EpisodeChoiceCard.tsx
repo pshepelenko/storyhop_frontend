@@ -21,6 +21,7 @@ type EpisodeChoiceCardProps = {
   audioUrl?: string | null;
   isSelected?: boolean;
   isConfirming?: boolean;
+  readOnly?: boolean;
   disabled?: boolean;
   confirmLabel?: string;
   onRequestConfirm: (choiceId: string) => void;
@@ -33,6 +34,7 @@ export default function EpisodeChoiceCard({
   audioUrl,
   isSelected,
   isConfirming,
+  readOnly = false,
   disabled,
   confirmLabel = 'Confirm',
   onRequestConfirm,
@@ -60,7 +62,7 @@ export default function EpisodeChoiceCard({
     <div
       className={`w-full rounded-[var(--sh-radius-lg)] border-2 p-4 transition-all ${style.border} ${style.bg} ${
         isSelected ? 'ring-2 ring-sh-forest ring-offset-1' : ''
-      } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
+      } ${disabled ? 'opacity-60 pointer-events-none' : ''} ${readOnly && !isSelected ? 'opacity-45' : ''}`}
     >
       {audioUrl && (
         <audio ref={audioRef} src={audioUrl} preload="none" onEnded={() => setPlaying(false)} />
@@ -74,7 +76,7 @@ export default function EpisodeChoiceCard({
         <button
           type="button"
           onClick={() => onRequestConfirm(choiceId)}
-          disabled={disabled}
+          disabled={disabled || readOnly}
           className="flex-1 min-w-0 text-left text-sm font-medium text-sh-foreground leading-relaxed"
         >
           {text}
@@ -82,7 +84,7 @@ export default function EpisodeChoiceCard({
         <button
           type="button"
           onClick={playAudio}
-          disabled={!audioUrl}
+          disabled={!audioUrl || disabled || readOnly}
           className={`shrink-0 p-1.5 rounded-full transition-colors ${
             audioUrl ? 'text-sh-muted hover:text-sh-forest hover:bg-white/80' : 'text-sh-border'
           } ${playing ? 'text-sh-forest' : ''}`}
@@ -91,7 +93,7 @@ export default function EpisodeChoiceCard({
           <SpeakerIcon className="w-5 h-5" />
         </button>
       </div>
-      {isConfirming && !disabled && (
+      {isConfirming && !disabled && !readOnly && (
         <div className="mt-3 pl-11">
           <Button
             variant="primary"

@@ -58,6 +58,9 @@ type EpisodeData = {
   title: string;
   chapterText: string;
   speakingPrompt?: string;
+  speaking?: {
+    completed: boolean;
+  };
   introOptionsPhrase: string;
   highlightedVocabulary: {
     term: string;
@@ -207,6 +210,9 @@ type SeasonData = {
       summary: string;
       status: string;
       unlockCost: number;
+      illustrationFailure?: {
+        refundedCrystals?: number;
+      } | null;
       metadata?: {
         episodeNumber?: number;
       };
@@ -359,10 +365,14 @@ export default function SeasonPage() {
         illustrationUnlockableTitle: 'Можно создать иллюстрацию',
         illustrationUnlockableBody: 'Нажмите «Создать», чтобы нарисовать сцену этой главы.',
         illustrationFailedTitle: 'Не удалось создать иллюстрацию',
-        illustrationFailedBody: 'Попробуйте создать ещё раз чуть позже.',
+        illustrationFailedBody: (refundedCrystals: number) =>
+          refundedCrystals > 0
+            ? `Кристаллы (${refundedCrystals}) возвращены на баланс. Попробуйте ещё раз.`
+            : 'Кристаллы не списывались. Попробуйте ещё раз.',
         openStorybook: 'Открыть альбом',
         createIllustration: 'Создать',
         creatingIllustration: 'Создаем...',
+        retryIllustration: 'Попробовать ещё раз',
         confirmChoice: 'Подтвердить',
       }
     : {
@@ -387,10 +397,14 @@ export default function SeasonPage() {
         illustrationUnlockableTitle: 'Illustration ready to create',
         illustrationUnlockableBody: 'Tap Create to paint the scene for this chapter.',
         illustrationFailedTitle: 'Could not create illustration',
-        illustrationFailedBody: 'Try again in a moment.',
+        illustrationFailedBody: (refundedCrystals: number) =>
+          refundedCrystals > 0
+            ? `${refundedCrystals} crystals were returned to your balance. Try again.`
+            : 'No crystals were charged. Try again.',
         openStorybook: 'Open Storybook',
         createIllustration: 'Create',
         creatingIllustration: 'Creating...',
+        retryIllustration: 'Try again',
         confirmChoice: 'Confirm',
       };
 
@@ -1152,6 +1166,7 @@ export default function SeasonPage() {
           unlockCost: ILLUSTRATION_UNLOCK_COST,
           crystalBalance: season.crystalWallet?.balance || 0,
           hasEnoughCrystals: hasEnoughCrystalsForIllustration,
+          refundedCrystals: Number(activeStorybookEntry?.illustrationFailure?.refundedCrystals || 0),
           phase: getIllustrationPlaceholderPhase({
             status: illustrationStatus,
             hasEnoughCrystals: hasEnoughCrystalsForIllustration,
@@ -1272,6 +1287,7 @@ export default function SeasonPage() {
             title={activeEpisode?.title || currentEpisode!.title}
             chapterText={activeEpisode?.chapterText || currentEpisode!.chapterText}
             speakingPrompt={activeEpisode?.speakingPrompt || currentEpisode!.speakingPrompt}
+            speakingCompleted={Boolean(activeEpisode?.speaking?.completed)}
             bonusPracticeLauncher={
               season.bonusPracticeSummary
                 ? (

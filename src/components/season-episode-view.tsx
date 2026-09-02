@@ -49,6 +49,7 @@ interface EpisodeIllustration {
   unlockCost?: number;
   crystalBalance?: number;
   hasEnoughCrystals?: boolean;
+  refundedCrystals?: number;
   phase?: 'queued' | 'generating' | 'insufficient_crystals' | 'unlockable' | 'failed';
 }
 
@@ -105,6 +106,7 @@ interface SeasonEpisodeViewProps {
   title: string;
   chapterText: string;
   speakingPrompt?: string;
+  speakingCompleted?: boolean;
   bonusPracticeLauncher?: ReactNode;
   introOptionsPhrase: string;
   highlightedVocabulary?: VocabWord[];
@@ -123,11 +125,12 @@ interface SeasonEpisodeViewProps {
     unlockableTitle: string;
     unlockableBody: string;
     failedTitle: string;
-    failedBody: string;
+    failedBody: (refundedCrystals: number) => string;
     openStorybook: string;
     inviteFriend: string;
     createIllustration: string;
     creatingIllustration: string;
+    retryIllustration: string;
   } | null;
   onOpenInviteFriend: () => void;
   onCreateIllustration: () => void;
@@ -163,6 +166,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   title,
   chapterText,
   speakingPrompt,
+  speakingCompleted = false,
   bonusPracticeLauncher,
   introOptionsPhrase,
   highlightedVocabulary,
@@ -348,12 +352,6 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
         episodeId={episodeId}
       />
 
-      {pendingAudioCount > 0 && (
-        <div className="mb-4 px-4 py-2 rounded-[var(--sh-radius)] bg-amber-50 border border-amber-200 text-sm text-amber-800">
-          {pendingAudioCount} audio chunk(s) being processed...
-        </div>
-      )}
-
       {highlightedVocabulary && highlightedVocabulary.length > 0 && (
         <VocabPracticeRow
           words={highlightedVocabulary}
@@ -379,13 +377,15 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                 variant="accent"
                 className="h-16 w-16 shrink-0 rounded-full !px-0 sm:h-[72px] sm:w-[72px]"
                 onClick={speakingRecorder.phase === 'recording' ? speakingRecorder.stop : speakingRecorder.start}
-                disabled={voiceLoadingPhrase === displayedSpeakingPrompt || speakingRecorder.phase === 'requesting' || speakingRecorder.phase === 'checking'}
-                aria-label={speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : speakingRecorder.phase === 'checking' || voiceLoadingPhrase === displayedSpeakingPrompt ? inlineSpeakingCopy.checking : inlineSpeakingCopy.start}
-                title={speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : inlineSpeakingCopy.start}
+                disabled={speakingCompleted || voiceLoadingPhrase === displayedSpeakingPrompt || speakingRecorder.phase === 'requesting' || speakingRecorder.phase === 'checking'}
+                aria-label={speakingCompleted ? (uiLanguage === 'russian' ? 'Фраза уже засчитана' : 'Line already completed') : speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : speakingRecorder.phase === 'checking' || voiceLoadingPhrase === displayedSpeakingPrompt ? inlineSpeakingCopy.checking : inlineSpeakingCopy.start}
+                title={speakingCompleted ? (uiLanguage === 'russian' ? 'Фраза уже засчитана' : 'Line already completed') : speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : inlineSpeakingCopy.start}
               >
-                {speakingRecorder.phase === 'recording'
-                  ? <span className="h-5 w-5 rounded-[4px] bg-current" aria-hidden="true" />
-                  : <MicrophoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />}
+                {speakingCompleted
+                  ? <span className="text-2xl font-semibold" aria-hidden="true">✓</span>
+                  : speakingRecorder.phase === 'recording'
+                    ? <span className="h-5 w-5 rounded-[4px] bg-current" aria-hidden="true" />
+                    : <MicrophoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />}
               </Button>
             </div>
             {speakingRecorder.phase === 'requesting' && (
@@ -403,6 +403,11 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                 {uiLanguage === 'russian'
                   ? 'Проверяем фразу. Обычно это занимает несколько секунд.'
                   : 'Checking your phrase. This usually takes a few seconds.'}
+              </div>
+            )}
+            {speakingCompleted && (
+              <div className="mt-3 text-xs font-medium text-sh-forest" role="status">
+                {uiLanguage === 'russian' ? 'Фраза уже засчитана.' : 'This line is already completed.'}
               </div>
             )}
             {heardTranscript && (
@@ -452,7 +457,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                   : phase === 'generating'
                   ? copy?.generatingBody || 'Please wait while we paint the scene for this chapter.'
                   : phase === 'failed'
-                    ? copy?.failedBody || 'Try again in a moment.'
+                    ? copy?.failedBody?.(episodeIllustration.refundedCrystals || 0) || 'Try again in a moment.'
                     : phase === 'unlockable'
                       ? copy?.unlockableBody || 'Tap Create to paint the scene for this chapter.'
                       : copy?.insufficientBody || '';
@@ -485,10 +490,12 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                   {(phase === 'queued' || phase === 'generating') && (
                     <div className="mt-3 h-5 w-5 animate-spin rounded-full border-2 border-sh-forest border-t-transparent" />
                   )}
-                  {((phase === 'unlockable' && episodeIllustration.hasEnoughCrystals && showManualIllustrationCreate) ||
+                  {((['unlockable', 'failed'].includes(phase) && episodeIllustration.hasEnoughCrystals &&
+                    (phase === 'failed' || showManualIllustrationCreate)) ||
                     (!['queued', 'generating'].includes(phase) && episodeIllustration.hasEnoughCrystals && storybookHref)) && (
                     <div className="mt-3 flex flex-wrap gap-3">
-                      {phase === 'unlockable' && episodeIllustration.hasEnoughCrystals && showManualIllustrationCreate && (
+                      {(['unlockable', 'failed'].includes(phase) && episodeIllustration.hasEnoughCrystals &&
+                        (phase === 'failed' || showManualIllustrationCreate)) && (
                         <Button
                           variant="primary"
                           className="!min-h-[36px] h-9 py-0 px-4 text-xs"
@@ -497,7 +504,9 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
                         >
                           {illustrationLoading
                             ? illustrationPlaceholderCopy?.creatingIllustration || 'Creating...'
-                            : illustrationPlaceholderCopy?.createIllustration || 'Create'}
+                            : phase === 'failed'
+                              ? illustrationPlaceholderCopy?.retryIllustration || 'Try again'
+                              : illustrationPlaceholderCopy?.createIllustration || 'Create'}
                         </Button>
                       )}
                       {episodeIllustration.hasEnoughCrystals && storybookHref && (
@@ -557,6 +566,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
               audioUrl={choiceChunk?.audioUrl || null}
               isSelected={selectedChoiceId === choice.id}
               isConfirming={confirmingChoiceId === choice.id}
+              readOnly={Boolean(selectedChoiceId) && !resumeThisChoice}
               onRequestConfirm={(choiceId) => {
                 if (resumeThisChoice) {
                   setConfirmingChoiceId(null);
