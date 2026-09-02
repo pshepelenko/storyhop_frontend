@@ -252,6 +252,13 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
     setSpeechPhase('idle');
     captureAnalyticsEvent('speaking_recognition_requested', { source: 'inline' });
     startEnglishSpeechRecognition({
+      onDiagnostic: ({ engine, microphonePermission }) => {
+        captureAnalyticsEvent('speaking_recognition_diagnostic', {
+          source: 'inline',
+          recognition_engine: engine,
+          microphone_permission: microphonePermission,
+        });
+      },
       onStart: () => {
         setHeardTranscript('');
         setSpeechPhase('listening');

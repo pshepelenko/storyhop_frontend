@@ -7,9 +7,18 @@ type Props = {
   seasonId: string;
   copy: StorybookCopy;
   emptyText: string;
+  onCreateIllustration: (moment: StorybookMoment) => void;
+  creatingEpisodeId?: string | null;
 };
 
-export default function MomentGrid({ moments, seasonId, copy, emptyText }: Props) {
+export default function MomentGrid({
+  moments,
+  seasonId,
+  copy,
+  emptyText,
+  onCreateIllustration,
+  creatingEpisodeId,
+}: Props) {
   if (moments.length === 0) {
     return (
       <p className="rounded-[20px] border border-dashed border-sh-border bg-white/70 px-4 py-10 text-center text-sm text-sh-muted">
@@ -22,7 +31,13 @@ export default function MomentGrid({ moments, seasonId, copy, emptyText }: Props
     <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5" role="list">
       {moments.map((moment) => (
         <li key={moment.storybookEntryId}>
-          <MomentCard moment={moment} seasonId={seasonId} copy={copy} />
+          <MomentCard
+            moment={moment}
+            seasonId={seasonId}
+            copy={copy}
+            onCreateIllustration={onCreateIllustration}
+            creating={creatingEpisodeId === moment.episodeId}
+          />
         </li>
       ))}
     </ul>

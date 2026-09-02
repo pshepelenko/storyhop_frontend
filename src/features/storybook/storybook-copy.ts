@@ -21,6 +21,9 @@ export type StorybookCopy = {
   errorLoad: string;
   errorFavorite: string;
   titlePending: string;
+  openEpisode: string;
+  createIllustration: (cost: number) => string;
+  illustrationQueued: string;
 };
 
 const COPY: Record<UiLanguage, StorybookCopy> = {
@@ -51,6 +54,9 @@ const COPY: Record<UiLanguage, StorybookCopy> = {
     errorLoad: 'Could not load storybook.',
     errorFavorite: 'Could not update favorite.',
     titlePending: 'Your story',
+    openEpisode: 'Open episode',
+    createIllustration: (cost) => `Create illustration · ${cost} crystals`,
+    illustrationQueued: 'Illustration is being prepared',
   },
   russian: {
     backToSeasons: 'К сезонам',
@@ -79,6 +85,9 @@ const COPY: Record<UiLanguage, StorybookCopy> = {
     errorLoad: 'Не удалось загрузить альбом.',
     errorFavorite: 'Не удалось обновить избранное.',
     titlePending: 'Ваша история',
+    openEpisode: 'Открыть главу',
+    createIllustration: (cost) => `Создать иллюстрацию · ${cost} кристалла`,
+    illustrationQueued: 'Иллюстрация создаётся',
   },
 };
 

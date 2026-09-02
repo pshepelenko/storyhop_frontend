@@ -121,6 +121,13 @@ export default function SpeakingPracticeFlow({
     setSpeechPhase('idle');
     captureAnalyticsEvent('speaking_recognition_requested', { source: origin });
     startEnglishSpeechRecognition({
+      onDiagnostic: ({ engine, microphonePermission }) => {
+        captureAnalyticsEvent('speaking_recognition_diagnostic', {
+          source: origin,
+          recognition_engine: engine,
+          microphone_permission: microphonePermission,
+        });
+      },
       onStart: () => {
         setSpeechPhase('listening');
         setHeardTranscript('');

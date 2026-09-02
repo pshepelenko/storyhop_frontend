@@ -10,6 +10,12 @@ type RawSeason = {
   seasonSetup?: { seasonCoverImageUrl?: string | null; seasonTitle?: string };
   framework?: { seasonPremise?: string; title?: string };
   crystalWallet?: { balance?: number };
+  episodes?: Array<{
+    episodeId: string;
+    episodeNumber: number;
+    title: string;
+    illustrationCandidate?: { shouldGenerate?: boolean; moment?: string } | null;
+  }>;
   storybook?: {
     entries?: Array<{
       storybookEntryId: string;
@@ -97,6 +103,7 @@ function mapMoment(
     favorited: Boolean(entry.favorited ?? entry.metadata?.favorited),
     favoritedAt: entry.favoritedAt || (entry.metadata?.favoritedAt as string) || null,
     imageUrl,
+    canCreateIllustration: entry.status === 'not_created',
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
@@ -104,9 +111,35 @@ function mapMoment(
 
 export function mapSeasonToStorybookView(raw: RawSeason): StorybookSeasonView {
   const illustrations = raw.storybook?.illustrations || [];
-  const moments = (raw.storybook?.entries || [])
+  const entries = (raw.storybook?.entries || [])
     .filter((entry) => !entry.entryType || entry.entryType === 'episode_illustration')
     .map((entry) => mapMoment(entry, illustrations));
+  const entryByEpisodeId = new Map(
+    entries.filter((entry) => entry.episodeId).map((entry) => [entry.episodeId as string, entry]),
+  );
+  const chapterMoments = (raw.episodes || []).map((episode) => {
+    const entry = entryByEpisodeId.get(episode.episodeId);
+    if (entry) return entry;
+    return {
+      storybookEntryId: `episode-${episode.episodeId}`,
+      episodeId: episode.episodeId,
+      illustrationId: null,
+      title: `Episode ${episode.episodeNumber}: ${episode.title}`,
+      summary: episode.illustrationCandidate?.moment || '',
+      status: 'not_created',
+      unlockCost: ILLUSTRATION_UNLOCK_COST,
+      episodeNumber: episode.episodeNumber,
+      episodeTitle: episode.title,
+      favorited: false,
+      favoritedAt: null,
+      imageUrl: null,
+      canCreateIllustration: Boolean(episode.illustrationCandidate?.shouldGenerate),
+    } satisfies StorybookMoment;
+  });
+  const moments = [
+    ...chapterMoments,
+    ...entries.filter((entry) => !entry.episodeId),
+  ];
 
   const readyWithImage = moments.filter((moment) => Boolean(moment.imageUrl));
 

@@ -8,12 +8,13 @@ import { formatParentLabel } from '@/data/home-display';
 import { apiFetchAsGuest } from '@/lib/api-client';
 import { getUiLanguage } from '@/lib/ui-language';
 import { useUiLanguage } from '@/lib/use-ui-language';
+import { captureAnalyticsEvent } from '@/lib/analytics';
 import { getStorybookSeason } from './api/storybookApi';
 import MomentGrid from './components/MomentGrid';
 import StorybookHero from './components/StorybookHero';
 import StorybookSortDropdown from './components/StorybookSortDropdown';
 import { getStorybookCopy } from './storybook-copy';
-import type { StorybookSeasonView, StorybookSort } from './types';
+import type { StorybookMoment, StorybookSeasonView, StorybookSort } from './types';
 
 export default function StorybookPage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function StorybookPage() {
   const [sort, setSort] = useState<StorybookSort>('episode');
   const [parentLabel, setParentLabel] = useState<string | null>(null);
   const [hasSeasons, setHasSeasons] = useState(true);
+  const [creatingEpisodeId, setCreatingEpisodeId] = useState<string | null>(null);
   const loadRequestIdRef = useRef(0);
 
   const load = useCallback(async (seasonId: string) => {
@@ -59,6 +61,31 @@ export default function StorybookPage() {
       }
     }
   }, []);
+
+  const createIllustration = useCallback(async (moment: StorybookMoment) => {
+    if (!id || typeof id !== 'string' || !moment.episodeId || !moment.canCreateIllustration) return;
+
+    setCreatingEpisodeId(moment.episodeId);
+    setError('');
+    captureAnalyticsEvent('illustration_requested', { source: 'storybook' });
+    try {
+      const response = await apiFetchAsGuest(`/seasons/${id}/storybook/unlock`, {
+        method: 'POST',
+        body: JSON.stringify({ episodeId: moment.episodeId }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      captureAnalyticsEvent('illustration_generation_queued', { source: 'storybook' });
+      await load(id);
+    } catch (error) {
+      console.error(error);
+      captureAnalyticsEvent('illustration_request_failed', { source: 'storybook' });
+      setError(getStorybookCopy(getUiLanguage()).errorLoad);
+    } finally {
+      setCreatingEpisodeId(null);
+    }
+  }, [id, load]);
 
   useEffect(() => {
     if (!id || typeof id !== 'string') return;
@@ -138,6 +165,8 @@ export default function StorybookPage() {
                 seasonId={data.seasonId}
                 copy={copy}
                 emptyText={copy.emptyAll}
+                onCreateIllustration={createIllustration}
+                creatingEpisodeId={creatingEpisodeId}
               />
             </>
           )}

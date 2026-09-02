@@ -43,6 +43,12 @@ type StartEnglishSpeechRecognitionOptions = {
   onResult: (transcript: string) => void;
   onError: (code: SpeechRecognitionErrorCode) => void;
   onEnd: () => void;
+  onDiagnostic?: (diagnostic: SpeechRecognitionDiagnostic) => void;
+};
+
+export type SpeechRecognitionDiagnostic = {
+  engine: 'standard' | 'webkit' | 'unsupported';
+  microphonePermission: 'granted' | 'denied' | 'unavailable' | 'error';
 };
 
 const SUPPORTED_ERROR_CODES = new Set<SpeechRecognitionErrorCode>([
@@ -94,14 +100,44 @@ export function getSpeechRecognitionErrorMessage(
   return (language === 'russian' ? russian : english)[code];
 }
 
+function getMicrophonePermissionErrorCode(error: unknown): SpeechRecognitionErrorCode {
+  const name = String((error as { name?: string } | null)?.name || '').toLowerCase();
+  if (name === 'notallowederror' || name === 'securityerror') {
+    return 'not-allowed';
+  }
+  if (name === 'notfounderror' || name === 'notreadableerror' || name === 'aborterror') {
+    return 'audio-capture';
+  }
+  return 'start-failed';
+}
+
+async function requestMicrophonePermission(): Promise<
+  { status: 'granted' } | { status: 'denied' | 'error'; code: SpeechRecognitionErrorCode } | { status: 'unavailable' }
+> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return { status: 'unavailable' };
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    return { status: 'granted' };
+  } catch (error) {
+    const code = getMicrophonePermissionErrorCode(error);
+    return { status: code === 'not-allowed' ? 'denied' : 'error', code };
+  }
+}
+
 /** Makes browser-owned Web Speech failures visible to the calling interface. */
-export function startEnglishSpeechRecognition({
+export async function startEnglishSpeechRecognition({
   onStart,
   onResult,
   onError,
   onEnd,
-}: StartEnglishSpeechRecognitionOptions): void {
+  onDiagnostic,
+}: StartEnglishSpeechRecognitionOptions): Promise<void> {
   if (typeof window === 'undefined') {
+    onDiagnostic?.({ engine: 'unsupported', microphonePermission: 'unavailable' });
     onError('unsupported');
     return;
   }
@@ -109,7 +145,16 @@ export function startEnglishSpeechRecognition({
   const browserWindow = window as BrowserSpeechRecognitionWindow;
   const Recognition = browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition;
   if (!Recognition) {
+    onDiagnostic?.({ engine: 'unsupported', microphonePermission: 'unavailable' });
     onError('unsupported');
+    return;
+  }
+
+  const engine = browserWindow.SpeechRecognition ? 'standard' : 'webkit';
+  const microphonePermission = await requestMicrophonePermission();
+  onDiagnostic?.({ engine, microphonePermission: microphonePermission.status });
+  if (microphonePermission.status === 'denied' || microphonePermission.status === 'error') {
+    onError(microphonePermission.code);
     return;
   }
 
