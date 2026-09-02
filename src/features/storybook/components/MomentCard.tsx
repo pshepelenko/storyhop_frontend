@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { imageAssets } from '@/data/image-assets';
-import { Button, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 import type { StorybookCopy } from '../storybook-copy';
 import type { StorybookMoment } from '../types';
 
@@ -9,13 +9,11 @@ type Props = {
   moment: StorybookMoment;
   seasonId: string;
   copy: StorybookCopy;
-  onCreateIllustration: (moment: StorybookMoment) => void;
-  creating: boolean;
 };
 
 const FALLBACK = imageAssets.states.storybookMomentFallback;
 
-export default function MomentCard({ moment, seasonId, copy, onCreateIllustration, creating }: Props) {
+export default function MomentCard({ moment, seasonId, copy }: Props) {
   const episodeLabel =
     moment.episodeNumber != null
       ? copy.episodeLabel(moment.episodeNumber)
@@ -54,55 +52,26 @@ export default function MomentCard({ moment, seasonId, copy, onCreateIllustratio
     />
   );
 
-  const caption = (
-    <p className="text-xs text-sh-foreground/65">
-      {episodeLabel}
-      {episodeLabel && title ? ' · ' : null}
-      <span className="font-medium text-sh-foreground">{title}</span>
-    </p>
-  );
-
-  const showCreate = moment.canCreateIllustration && !moment.imageUrl;
-  const isGenerating = ['queued', 'pending', 'processing'].includes(moment.status);
-
-  return (
-    <Card padding="none" variant="flat" className="group h-full overflow-hidden">
+  const card = (
+    <Card padding="none" variant="flat" className="group h-full overflow-hidden transition-colors hover:border-sh-forest/35">
       <article className="flex h-full flex-col">
         <div className="relative aspect-square overflow-hidden bg-sh-forest-soft">
-        {href ? (
-          <Link href={href} className="absolute inset-0 block" aria-label={title}>
-            {image}
-          </Link>
-        ) : (
-          image
-        )}
+          {image}
         </div>
         <div className="flex flex-1 flex-col p-3">
-        {href ? (
-          <Link href={href} className="block hover:underline">
-            {caption}
-          </Link>
-        ) : (
-          caption
-        )}
-          <div className="mt-3">
-            {showCreate ? (
-              <Button
-                variant="secondary"
-                className="h-9 !min-h-[36px] w-full px-2 text-xs leading-tight"
-                onClick={() => onCreateIllustration(moment)}
-                disabled={creating}
-              >
-                {creating ? copy.illustrationQueued : copy.createIllustration(moment.unlockCost)}
-              </Button>
-            ) : href ? (
-              <Button href={href} variant="ghost" className="h-9 !min-h-[36px] w-full px-2 text-xs">
-                {isGenerating ? copy.illustrationQueued : copy.openEpisode}
-              </Button>
-            ) : null}
-          </div>
+          <p className="text-xs text-sh-foreground/65">
+            {episodeLabel}
+            {episodeLabel && title ? ' · ' : null}
+            <span className="font-medium text-sh-foreground">{title}</span>
+          </p>
         </div>
       </article>
     </Card>
   );
+
+  return href ? (
+    <Link href={href} className="block h-full" aria-label={title}>
+      {card}
+    </Link>
+  ) : card;
 }

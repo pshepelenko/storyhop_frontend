@@ -103,7 +103,6 @@ function mapMoment(
     favorited: Boolean(entry.favorited ?? entry.metadata?.favorited),
     favoritedAt: entry.favoritedAt || (entry.metadata?.favoritedAt as string) || null,
     imageUrl,
-    canCreateIllustration: entry.status === 'not_created',
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
@@ -133,7 +132,6 @@ export function mapSeasonToStorybookView(raw: RawSeason): StorybookSeasonView {
       favorited: false,
       favoritedAt: null,
       imageUrl: null,
-      canCreateIllustration: Boolean(episode.illustrationCandidate?.shouldGenerate),
     } satisfies StorybookMoment;
   });
   const moments = [

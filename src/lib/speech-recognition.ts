@@ -48,7 +48,7 @@ type StartEnglishSpeechRecognitionOptions = {
 
 export type SpeechRecognitionDiagnostic = {
   engine: 'standard' | 'webkit' | 'unsupported';
-  microphonePermission: 'granted' | 'denied' | 'unavailable' | 'error';
+  microphonePermission: 'unknown' | 'granted' | 'denied' | 'unavailable' | 'error';
 };
 
 const SUPPORTED_ERROR_CODES = new Set<SpeechRecognitionErrorCode>([
@@ -100,42 +100,14 @@ export function getSpeechRecognitionErrorMessage(
   return (language === 'russian' ? russian : english)[code];
 }
 
-function getMicrophonePermissionErrorCode(error: unknown): SpeechRecognitionErrorCode {
-  const name = String((error as { name?: string } | null)?.name || '').toLowerCase();
-  if (name === 'notallowederror' || name === 'securityerror') {
-    return 'not-allowed';
-  }
-  if (name === 'notfounderror' || name === 'notreadableerror' || name === 'aborterror') {
-    return 'audio-capture';
-  }
-  return 'start-failed';
-}
-
-async function requestMicrophonePermission(): Promise<
-  { status: 'granted' } | { status: 'denied' | 'error'; code: SpeechRecognitionErrorCode } | { status: 'unavailable' }
-> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    return { status: 'unavailable' };
-  }
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach((track) => track.stop());
-    return { status: 'granted' };
-  } catch (error) {
-    const code = getMicrophonePermissionErrorCode(error);
-    return { status: code === 'not-allowed' ? 'denied' : 'error', code };
-  }
-}
-
 /** Makes browser-owned Web Speech failures visible to the calling interface. */
-export async function startEnglishSpeechRecognition({
+export function startEnglishSpeechRecognition({
   onStart,
   onResult,
   onError,
   onEnd,
   onDiagnostic,
-}: StartEnglishSpeechRecognitionOptions): Promise<void> {
+}: StartEnglishSpeechRecognitionOptions): void {
   if (typeof window === 'undefined') {
     onDiagnostic?.({ engine: 'unsupported', microphonePermission: 'unavailable' });
     onError('unsupported');
@@ -151,12 +123,9 @@ export async function startEnglishSpeechRecognition({
   }
 
   const engine = browserWindow.SpeechRecognition ? 'standard' : 'webkit';
-  const microphonePermission = await requestMicrophonePermission();
-  onDiagnostic?.({ engine, microphonePermission: microphonePermission.status });
-  if (microphonePermission.status === 'denied' || microphonePermission.status === 'error') {
-    onError(microphonePermission.code);
-    return;
-  }
+  // Safari only accepts webkitSpeechRecognition.start() while the original tap is
+  // still active. Do not await getUserMedia or any other promise before this call.
+  onDiagnostic?.({ engine, microphonePermission: 'unknown' });
 
   try {
     const recognition = new Recognition();

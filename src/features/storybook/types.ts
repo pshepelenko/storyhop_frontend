@@ -14,7 +14,6 @@ export type StorybookMoment = {
   favorited: boolean;
   favoritedAt: string | null;
   imageUrl: string | null;
-  canCreateIllustration: boolean;
   createdAt?: string;
   updatedAt?: string;
 };

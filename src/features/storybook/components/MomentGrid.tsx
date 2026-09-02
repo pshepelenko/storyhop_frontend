@@ -7,8 +7,6 @@ type Props = {
   seasonId: string;
   copy: StorybookCopy;
   emptyText: string;
-  onCreateIllustration: (moment: StorybookMoment) => void;
-  creatingEpisodeId?: string | null;
 };
 
 export default function MomentGrid({
@@ -16,8 +14,6 @@ export default function MomentGrid({
   seasonId,
   copy,
   emptyText,
-  onCreateIllustration,
-  creatingEpisodeId,
 }: Props) {
   if (moments.length === 0) {
     return (
@@ -35,8 +31,6 @@ export default function MomentGrid({
             moment={moment}
             seasonId={seasonId}
             copy={copy}
-            onCreateIllustration={onCreateIllustration}
-            creating={creatingEpisodeId === moment.episodeId}
           />
         </li>
       ))}
