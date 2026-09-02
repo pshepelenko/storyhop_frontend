@@ -3,12 +3,11 @@ import type { ReactNode } from 'react';
 import EpisodeReaderHeader from '@/components/episode/EpisodeReaderHeader';
 import { useReadingTextSize } from '@/lib/use-reading-text-size';
 import { useUiLanguage } from '@/lib/use-ui-language';
-import { captureAnalyticsEvent } from '@/lib/analytics';
 import {
-  getSpeechRecognitionErrorMessage,
-  startEnglishSpeechRecognition,
-  type SpeechRecognitionErrorCode,
-} from '@/lib/speech-recognition';
+  getSpeechRecorderErrorMessage,
+  transcribeSpeakingAudio,
+  useSpeechRecorder,
+} from '@/lib/speech-recorder';
 import { imageAssets } from '@/data/image-assets';
 import {
   Button,
@@ -65,6 +64,8 @@ const INLINE_SPEAKING_COPY = {
     label: 'Speaking',
     instruction: 'Say this line from the story:',
     start: 'Start speaking',
+    stop: 'Done speaking',
+    requesting: 'Opening microphone...',
     listening: 'Listening now...',
     checking: 'Checking...',
     listeningHelp: 'Start speaking now. The line will be sent automatically when we hear you.',
@@ -75,6 +76,8 @@ const INLINE_SPEAKING_COPY = {
     label: 'Говорим',
     instruction: 'Повтори фразу из истории:',
     start: 'Начать говорить',
+    stop: 'Готово',
+    requesting: 'Открываем микрофон...',
     listening: 'Слушаем...',
     checking: 'Проверяем...',
     listeningHelp: 'Говорите сейчас. Мы автоматически проверим фразу, когда услышим её.',
@@ -196,8 +199,6 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   const inlineSpeakingCopy = INLINE_SPEAKING_COPY[uiLanguage];
   const [confirmingChoiceId, setConfirmingChoiceId] = useState<string | null>(null);
   const [chapterAutoplayToken, setChapterAutoplayToken] = useState<string | null>(null);
-  const [speechPhase, setSpeechPhase] = useState<'idle' | 'listening' | 'checking' | 'unsupported'>('idle');
-  const [speechError, setSpeechError] = useState<SpeechRecognitionErrorCode | null>(null);
   const [heardTranscript, setHeardTranscript] = useState('');
   const displayedSpeakingPrompt = speakingPrompt
     ?.trim()
@@ -247,38 +248,15 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
     ? `chapter:${episodeNumber}:${chapterUrls.join('|')}`
     : `waiting:${episodeNumber}:parts`;
 
-  const startVoiceAttempt = (targetPhrase: string) => {
-    setSpeechError(null);
-    setSpeechPhase('idle');
-    captureAnalyticsEvent('speaking_recognition_requested', { source: 'inline' });
-    startEnglishSpeechRecognition({
-      onDiagnostic: ({ engine, microphonePermission }) => {
-        captureAnalyticsEvent('speaking_recognition_diagnostic', {
-          source: 'inline',
-          recognition_engine: engine,
-          microphone_permission: microphonePermission,
-        });
-      },
-      onStart: () => {
-        setHeardTranscript('');
-        setSpeechPhase('listening');
-        captureAnalyticsEvent('speaking_recognition_started', { source: 'inline' });
-      },
-      onResult: (transcript) => {
-        setHeardTranscript(transcript);
-        setSpeechPhase('checking');
-        onVoiceAttempt(targetPhrase, transcript);
-      },
-      onError: (code) => {
-        setSpeechError(code);
-        setSpeechPhase(code === 'unsupported' ? 'unsupported' : 'idle');
-        captureAnalyticsEvent('speaking_recognition_failed', { source: 'inline', error_code: code });
-      },
-      onEnd: () => {
-        setSpeechPhase((current) => (current === 'listening' ? 'idle' : current));
-      },
-    });
-  };
+  const speakingRecorder = useSpeechRecorder({
+    source: 'inline',
+    onRecordedAudio: async (audio) => {
+      if (!seasonId || !displayedSpeakingPrompt) return;
+      const transcript = await transcribeSpeakingAudio(seasonId, audio);
+      setHeardTranscript(transcript);
+      onVoiceAttempt(displayedSpeakingPrompt, transcript);
+    },
+  });
 
   useEffect(() => {
     if (pendingAudioCount > 0) {
@@ -289,16 +267,8 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   }, [episodeNumber]);
 
   useEffect(() => {
-    setSpeechPhase('idle');
-    setSpeechError(null);
     setHeardTranscript('');
   }, [episodeId]);
-
-  useEffect(() => {
-    if (speechPhase === 'checking' && !voiceLoadingPhrase) {
-      setSpeechPhase('idle');
-    }
-  }, [speechPhase, voiceLoadingPhrase]);
 
   useEffect(() => {
     return () => {
@@ -408,26 +378,29 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
               <Button
                 variant="accent"
                 className="h-16 w-16 shrink-0 rounded-full !px-0 sm:h-[72px] sm:w-[72px]"
-                onClick={() => startVoiceAttempt(displayedSpeakingPrompt)}
-                disabled={voiceLoadingPhrase === displayedSpeakingPrompt || speechPhase === 'listening' || speechPhase === 'checking'}
-                aria-label={speechPhase === 'listening' ? inlineSpeakingCopy.listening : speechPhase === 'checking' || voiceLoadingPhrase === displayedSpeakingPrompt ? inlineSpeakingCopy.checking : inlineSpeakingCopy.start}
-                title={inlineSpeakingCopy.start}
+                onClick={speakingRecorder.phase === 'recording' ? speakingRecorder.stop : speakingRecorder.start}
+                disabled={voiceLoadingPhrase === displayedSpeakingPrompt || speakingRecorder.phase === 'requesting' || speakingRecorder.phase === 'checking'}
+                aria-label={speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : speakingRecorder.phase === 'checking' || voiceLoadingPhrase === displayedSpeakingPrompt ? inlineSpeakingCopy.checking : inlineSpeakingCopy.start}
+                title={speakingRecorder.phase === 'recording' ? inlineSpeakingCopy.stop : inlineSpeakingCopy.start}
               >
                 <MicrophoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />
               </Button>
             </div>
-            {speechPhase === 'listening' && (
+            {speakingRecorder.phase === 'requesting' && (
+              <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.requesting}</div>
+            )}
+            {speakingRecorder.phase === 'recording' && (
               <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.listeningHelp}</div>
             )}
-            {speechPhase === 'checking' && (
+            {speakingRecorder.phase === 'checking' && (
               <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.checkingHelp}</div>
             )}
             {heardTranscript && (
               <div className="ph-sensitive mt-2 text-xs text-sh-muted">{inlineSpeakingCopy.heard} &quot;{heardTranscript}&quot;</div>
             )}
-            {speechError && (
+            {speakingRecorder.error && (
               <div className="mt-3 text-xs text-red-600" role="status">
-                {getSpeechRecognitionErrorMessage(speechError, uiLanguage)}
+                {getSpeechRecorderErrorMessage(speakingRecorder.error, uiLanguage)}
               </div>
             )}
             {voiceFeedback && (

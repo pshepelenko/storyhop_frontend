@@ -14,10 +14,10 @@ import {
 import { getUiLanguage } from '@/lib/ui-language';
 import { captureAnalyticsEvent } from '@/lib/analytics';
 import {
-  getSpeechRecognitionErrorMessage,
-  startEnglishSpeechRecognition,
-  type SpeechRecognitionErrorCode,
-} from '@/lib/speech-recognition';
+  getSpeechRecorderErrorMessage,
+  transcribeSpeakingAudio,
+  useSpeechRecorder,
+} from '@/lib/speech-recorder';
 import PracticeScaffold from './PracticeScaffold';
 
 type SpeakingPracticeFlowProps = {
@@ -45,8 +45,6 @@ export default function SpeakingPracticeFlow({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [speechPhase, setSpeechPhase] = useState<'idle' | 'listening' | 'checking' | 'unsupported'>('idle');
-  const [speechError, setSpeechError] = useState<SpeechRecognitionErrorCode | null>(null);
   const [heardTranscript, setHeardTranscript] = useState('');
   const [earned, setEarned] = useState(0);
   const [successfulSteps, setSuccessfulSteps] = useState<number[]>([]);
@@ -104,8 +102,6 @@ export default function SpeakingPracticeFlow({
     setSuccessfulSteps((current) => (current.includes(activeIndex) ? current : [...current, activeIndex]));
     if (isRecap && payload?.items && activeIndex < payload.items.length - 1) {
       setActiveIndex((current) => current + 1);
-      setSpeechPhase('idle');
-      setSpeechError(null);
       setHeardTranscript('');
       return;
     }
@@ -115,66 +111,40 @@ export default function SpeakingPracticeFlow({
     setPhase('result');
   };
 
-  const startRecognition = () => {
-    setSpeechError(null);
-    setError(null);
-    setSpeechPhase('idle');
-    captureAnalyticsEvent('speaking_recognition_requested', { source: origin });
-    startEnglishSpeechRecognition({
-      onDiagnostic: ({ engine, microphonePermission }) => {
-        captureAnalyticsEvent('speaking_recognition_diagnostic', {
-          source: origin,
-          recognition_engine: engine,
-          microphone_permission: microphonePermission,
+  const speakingRecorder = useSpeechRecorder({
+    source: origin,
+    onRecordedAudio: async (audio) => {
+      setError(null);
+      const transcript = await transcribeSpeakingAudio(seasonId, audio);
+      setHeardTranscript(transcript);
+      try {
+        const result = await apiPost<{
+          success: boolean;
+          status: string;
+          crystalsAwarded: number;
+        }>(`/seasons/${seasonId}/bonus-practice/speaking/attempt`, {
+          origin,
+          itemId: activeItem?.itemId || undefined,
+          episodeId: activeItem?.episodeId || undefined,
+          targetPhrase: activeItem?.phraseText || '',
+          transcript,
         });
-      },
-      onStart: () => {
-        setSpeechPhase('listening');
-        setHeardTranscript('');
-        captureAnalyticsEvent('speaking_recognition_started', { source: origin });
-      },
-      onResult: async (transcript) => {
-        setHeardTranscript(transcript);
-        setSpeechPhase('checking');
-        try {
-          const result = await apiPost<{
-            success: boolean;
-            status: string;
-            crystalsAwarded: number;
-          }>(`/seasons/${seasonId}/bonus-practice/speaking/attempt`, {
+        if (result.status === 'awarded' || result.status === 'already_awarded') {
+          captureAnalyticsEvent('speaking_practice_succeeded', {
             origin,
-            itemId: activeItem?.itemId || undefined,
-            episodeId: activeItem?.episodeId || undefined,
-            targetPhrase: activeItem?.phraseText || '',
-            transcript,
+            crystals_awarded: result.crystalsAwarded || 0,
           });
-          if (result.status === 'awarded' || result.status === 'already_awarded') {
-            captureAnalyticsEvent('speaking_practice_succeeded', {
-              origin,
-              crystals_awarded: result.crystalsAwarded || 0,
-            });
-            await moveToNext(result.crystalsAwarded || 0);
-          } else {
-            captureAnalyticsEvent('speaking_practice_not_matched', { origin });
-            setSpeechPhase('idle');
-            setError(copy.lineNotMatched);
-          }
-        } catch (submitError) {
-          console.error(submitError);
-          setSpeechPhase('idle');
-          setError(copy.tryAgain);
+          await moveToNext(result.crystalsAwarded || 0);
+        } else {
+          captureAnalyticsEvent('speaking_practice_not_matched', { origin });
+          setError(copy.lineNotMatched);
         }
-      },
-      onError: (code) => {
-        setSpeechError(code);
-        setSpeechPhase(code === 'unsupported' ? 'unsupported' : 'idle');
-        captureAnalyticsEvent('speaking_recognition_failed', { source: origin, error_code: code });
-      },
-      onEnd: () => {
-        setSpeechPhase((current) => (current === 'listening' ? 'idle' : current));
-      },
-    });
-  };
+      } catch (submitError) {
+        console.error(submitError);
+        setError(copy.tryAgain);
+      }
+    },
+  });
 
   const skip = async () => {
     captureAnalyticsEvent('speaking_practice_skipped', { origin, practice_type: payload?.type });
@@ -225,7 +195,6 @@ export default function SpeakingPracticeFlow({
       setEarned(0);
       setSuccessfulSteps([]);
       setHeardTranscript('');
-      setSpeechPhase('idle');
       setPhase('practice');
     } catch (loadError) {
       console.error(loadError);
@@ -419,8 +388,8 @@ export default function SpeakingPracticeFlow({
             <button
               type="button"
               className="group relative inline-flex h-24 w-24 items-center justify-center rounded-full bg-[color:var(--sh-lavender)] text-white shadow-[0_20px_50px_rgba(139,92,246,0.32)] transition-transform hover:scale-[1.01] disabled:scale-100 disabled:opacity-70 sm:h-28 sm:w-28"
-              onClick={startRecognition}
-              disabled={speechPhase === 'listening' || speechPhase === 'checking'}
+              onClick={speakingRecorder.phase === 'recording' ? speakingRecorder.stop : speakingRecorder.start}
+              disabled={speakingRecorder.phase === 'requesting' || speakingRecorder.phase === 'checking'}
             >
               <span className="absolute inset-[-16px] rounded-full border border-[color:var(--sh-lavender)]/20" />
               <span className="absolute inset-[-36px] rounded-full border border-[color:var(--sh-lavender)]/10" />
@@ -429,9 +398,11 @@ export default function SpeakingPracticeFlow({
           </div>
 
           <p className="text-center text-sm font-medium text-sh-foreground">
-            {speechPhase === 'listening'
+            {speakingRecorder.phase === 'requesting'
+              ? (isRussian ? 'Открываем микрофон...' : 'Opening microphone...')
+              : speakingRecorder.phase === 'recording'
               ? copy.listening
-              : speechPhase === 'checking'
+              : speakingRecorder.phase === 'checking'
                 ? copy.checking
                 : isRussian
                   ? 'Нажми и говори'
@@ -446,14 +417,16 @@ export default function SpeakingPracticeFlow({
         </div>
 
         <div className="min-h-[76px]" aria-live="polite">
-          {(heardTranscript || error || speechError) && (
+          {(heardTranscript || error || speakingRecorder.error) && (
             <div className="space-y-2 rounded-[18px] border border-sh-border bg-sh-border-subtle/60 px-4 py-3 text-sm">
               {heardTranscript && (
                 <p className="ph-sensitive text-sh-muted">
                   {copy.transcript}: &quot;{heardTranscript}&quot;
                 </p>
               )}
-              {speechError && <p className="text-red-600">{getSpeechRecognitionErrorMessage(speechError, language)}</p>}
+              {speakingRecorder.error && (
+                <p className="text-red-600">{getSpeechRecorderErrorMessage(speakingRecorder.error, language)}</p>
+              )}
               {error && <p className="text-red-600">{error}</p>}
             </div>
           )}

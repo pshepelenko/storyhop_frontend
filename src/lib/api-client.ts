@@ -7,7 +7,9 @@ const nativeFetch = typeof window === 'undefined' ? null : window.fetch.bind(win
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (init.body && !headers.has('Content-Type') && !(typeof FormData !== 'undefined' && init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   const response = await (nativeFetch || fetch)(`${apiBase}${path}`, { ...init, headers, credentials: 'include' });
   if (!response.ok) {
     captureAnalyticsEvent('api_request_failed', {
