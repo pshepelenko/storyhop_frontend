@@ -390,10 +390,18 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
               <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.requesting}</div>
             )}
             {speakingRecorder.phase === 'recording' && (
-              <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.listeningHelp}</div>
+              <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">
+                {uiLanguage === 'russian'
+                  ? `Идёт запись: ${speakingRecorder.elapsedSeconds} из ${speakingRecorder.maxSeconds} с. Нажмите микрофон ещё раз, когда закончите.`
+                  : `Recording: ${speakingRecorder.elapsedSeconds} of ${speakingRecorder.maxSeconds}s. Tap the microphone again when you finish.`}
+              </div>
             )}
             {speakingRecorder.phase === 'checking' && (
-              <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">{inlineSpeakingCopy.checkingHelp}</div>
+              <div className="mt-3 text-xs text-[color:var(--sh-lavender)]">
+                {uiLanguage === 'russian'
+                  ? 'Проверяем фразу. Обычно это занимает несколько секунд.'
+                  : 'Checking your phrase. This usually takes a few seconds.'}
+              </div>
             )}
             {heardTranscript && (
               <div className="ph-sensitive mt-2 text-xs text-sh-muted">{inlineSpeakingCopy.heard} &quot;{heardTranscript}&quot;</div>

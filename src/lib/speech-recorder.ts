@@ -9,6 +9,7 @@ export type SpeechRecorderError =
   | 'audio-capture'
   | 'empty'
   | 'network'
+  | 'timeout'
   | 'rate-limited'
   | 'transcription-failed';
 
@@ -25,7 +26,8 @@ type Options = {
   maxDurationMs?: number;
 };
 
-const MIME_CANDIDATES = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
+// Chrome records Opus/WebM reliably; Safari falls through to its MP4 implementation.
+const MIME_CANDIDATES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
 
 function recorderError(error: unknown): SpeechRecorderError {
   const name = String((error as { name?: string } | null)?.name || '').toLowerCase();
@@ -41,6 +43,7 @@ export function getSpeechRecorderErrorMessage(error: SpeechRecorderError, langua
     'audio-capture': 'Не получилось использовать микрофон. Проверьте доступ и попробуйте ещё раз.',
     empty: 'Мы ничего не записали. Нажмите микрофон и скажите фразу ещё раз.',
     network: 'Для проверки фразы нужен интернет. Проверьте соединение и попробуйте ещё раз.',
+    timeout: 'Проверка фразы заняла слишком много времени. Попробуйте ещё раз.',
     'rate-limited': 'Сделайте небольшую паузу и попробуйте ещё раз.',
     'transcription-failed': 'Не удалось проверить фразу. Попробуйте ещё раз.',
   };
@@ -50,6 +53,7 @@ export function getSpeechRecorderErrorMessage(error: SpeechRecorderError, langua
     'audio-capture': 'We could not use the microphone. Check access and try again.',
     empty: 'We did not record anything. Tap the microphone and say the line again.',
     network: 'Checking your phrase needs an internet connection. Try again when you are online.',
+    timeout: 'Checking your phrase took too long. Please try again.',
     'rate-limited': 'Please wait a moment, then try again.',
     'transcription-failed': 'We could not check the phrase. Please try again.',
   };
@@ -62,13 +66,21 @@ export async function transcribeSpeakingAudio(seasonId: string, audio: RecordedA
   form.append('audio', audio.blob, `speaking.${extension}`);
   form.append('durationMs', String(Math.round(audio.durationMs)));
   let response: Response;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 22000);
   try {
     response = await apiFetchAsGuest(`/seasons/${seasonId}/bonus-practice/speaking/transcribe`, {
       method: 'POST',
       body: form,
+      signal: controller.signal,
     });
-  } catch {
+  } catch (error) {
+    if ((error as { name?: string } | null)?.name === 'AbortError') {
+      throw new SpeechRecorderRequestError('timeout');
+    }
     throw new SpeechRecorderRequestError('network');
+  } finally {
+    window.clearTimeout(timeout);
   }
   if (!response.ok) {
     if (response.status === 429) throw new SpeechRecorderRequestError('rate-limited');
@@ -84,10 +96,12 @@ export async function transcribeSpeakingAudio(seasonId: string, audio: RecordedA
 export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 12000 }: Options) {
   const [phase, setPhase] = useState<SpeechRecorderPhase>('idle');
   const [error, setError] = useState<SpeechRecorderError | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const startedAtRef = useRef(0);
   const timeoutRef = useRef<number | null>(null);
+  const elapsedIntervalRef = useRef<number | null>(null);
   const startingRef = useRef(false);
   const abortedRef = useRef(false);
   const onRecordedAudioRef = useRef(onRecordedAudio);
@@ -96,6 +110,8 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
   const release = useCallback(() => {
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
+    if (elapsedIntervalRef.current !== null) window.clearInterval(elapsedIntervalRef.current);
+    elapsedIntervalRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recorderRef.current = null;
@@ -130,9 +146,13 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
       };
       recorder.onstart = () => {
         startedAtRef.current = Date.now();
+        setElapsedMs(0);
         setPhase('recording');
         captureAnalyticsEvent('speaking_record_started', { source, format: recorder.mimeType || 'browser-default' });
         timeoutRef.current = window.setTimeout(stop, maxDurationMs);
+        elapsedIntervalRef.current = window.setInterval(() => {
+          setElapsedMs(Math.min(Date.now() - startedAtRef.current, maxDurationMs));
+        }, 250);
       };
       recorder.onerror = () => {
         abortedRef.current = true;
@@ -143,6 +163,7 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
       };
       recorder.onstop = async () => {
         const durationMs = Math.max(Date.now() - startedAtRef.current, 0);
+        setElapsedMs(durationMs);
         const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/mp4' });
         release();
         if (abortedRef.current) return;
@@ -180,5 +201,13 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
 
   useEffect(() => release, [release]);
 
-  return { phase, error, start, stop, clearError: () => setError(null) };
+  return {
+    phase,
+    error,
+    elapsedSeconds: Math.min(Math.ceil(elapsedMs / 1000), Math.ceil(maxDurationMs / 1000)),
+    maxSeconds: Math.ceil(maxDurationMs / 1000),
+    start,
+    stop,
+    clearError: () => setError(null),
+  };
 }

@@ -390,10 +390,15 @@ export default function SpeakingPracticeFlow({
               className="group relative inline-flex h-24 w-24 items-center justify-center rounded-full bg-[color:var(--sh-lavender)] text-white shadow-[0_20px_50px_rgba(139,92,246,0.32)] transition-transform hover:scale-[1.01] disabled:scale-100 disabled:opacity-70 sm:h-28 sm:w-28"
               onClick={speakingRecorder.phase === 'recording' ? speakingRecorder.stop : speakingRecorder.start}
               disabled={speakingRecorder.phase === 'requesting' || speakingRecorder.phase === 'checking'}
+              aria-label={speakingRecorder.phase === 'recording'
+                ? (isRussian ? 'Закончить запись' : 'Finish recording')
+                : (isRussian ? 'Начать запись' : 'Start recording')}
             >
               <span className="absolute inset-[-16px] rounded-full border border-[color:var(--sh-lavender)]/20" />
               <span className="absolute inset-[-36px] rounded-full border border-[color:var(--sh-lavender)]/10" />
-              <MicIcon className="h-11 w-11" />
+              {speakingRecorder.phase === 'recording'
+                ? <span className="h-8 w-8 rounded-[5px] bg-current" aria-hidden="true" />
+                : <MicIcon className="h-11 w-11" />}
             </button>
           </div>
 
@@ -401,9 +406,11 @@ export default function SpeakingPracticeFlow({
             {speakingRecorder.phase === 'requesting'
               ? (isRussian ? 'Открываем микрофон...' : 'Opening microphone...')
               : speakingRecorder.phase === 'recording'
-              ? copy.listening
+              ? (isRussian
+                ? `Идёт запись: ${speakingRecorder.elapsedSeconds} из ${speakingRecorder.maxSeconds} с. Нажми ещё раз, когда закончишь.`
+                : `Recording: ${speakingRecorder.elapsedSeconds} of ${speakingRecorder.maxSeconds}s. Tap again when you finish.`)
               : speakingRecorder.phase === 'checking'
-                ? copy.checking
+                ? (isRussian ? 'Проверяем фразу. Обычно это занимает несколько секунд.' : 'Checking your phrase. This usually takes a few seconds.')
                 : isRussian
                   ? 'Нажми и говори'
                   : 'Tap and speak'}
