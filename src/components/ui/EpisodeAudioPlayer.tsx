@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { captureAnalyticsEvent } from '@/lib/analytics';
+import { PAUSE_MEDIA_EVENT } from '@/lib/media-control';
 import PlayIcon from './PlayIcon';
 
 type EpisodeAudioPlayerProps = {
@@ -279,6 +280,15 @@ export default function EpisodeAudioPlayer({
     audioRef.current?.pause();
     setPlayingState(false);
   };
+
+  useEffect(() => {
+    const pauseForOverlay = () => {
+      audioRef.current?.pause();
+      setPlayingState(false);
+    };
+    window.addEventListener(PAUSE_MEDIA_EVENT, pauseForOverlay);
+    return () => window.removeEventListener(PAUSE_MEDIA_EVENT, pauseForOverlay);
+  }, []);
 
   const startPlayback = async (urls: string[] = playlist) => {
     if (!urls.length) return;

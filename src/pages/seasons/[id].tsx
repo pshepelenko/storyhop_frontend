@@ -1333,6 +1333,7 @@ export default function SeasonPage() {
               inviteFriend: ui.inviteFriend,
               createIllustration: ui.createIllustration,
               creatingIllustration: ui.creatingIllustration,
+              retryIllustration: ui.retryIllustration,
             }}
             onOpenInviteFriend={openInviteFriendModal}
             onCreateIllustration={() => activeEpisode && startIllustrationGeneration(activeEpisode.episodeId)}

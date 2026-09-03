@@ -1,12 +1,20 @@
 import { useEffect, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { pauseActiveMedia } from '@/lib/media-control';
 
 type ModalOverlayProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
   position?: 'fixed' | 'absolute';
+  pauseMediaOnOpen?: boolean;
 };
 
-export default function ModalOverlay({ children, className = '', position = 'fixed', ...props }: ModalOverlayProps) {
+export default function ModalOverlay({
+  children,
+  className = '',
+  position = 'fixed',
+  pauseMediaOnOpen = position === 'fixed',
+  ...props
+}: ModalOverlayProps) {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -14,6 +22,10 @@ export default function ModalOverlay({ children, className = '', position = 'fix
       setPortalTarget(document.body);
     }
   }, [position]);
+
+  useEffect(() => {
+    if (pauseMediaOnOpen) pauseActiveMedia();
+  }, [pauseMediaOnOpen]);
 
   const overlay = (
     <div

@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Button from './Button';
 import SpeakerIcon from './SpeakerIcon';
 import { getPlaybackRate } from '@/lib/playback-preference';
+import { PAUSE_MEDIA_EVENT } from '@/lib/media-control';
 
 type ChoiceLetter = 'A' | 'B' | 'C' | string;
 
@@ -44,6 +45,15 @@ export default function EpisodeChoiceCard({
   const [playing, setPlaying] = useState(false);
   const style = getChoiceStyle(choiceId);
 
+  useEffect(() => {
+    const pauseForOverlay = () => {
+      audioRef.current?.pause();
+      setPlaying(false);
+    };
+    window.addEventListener(PAUSE_MEDIA_EVENT, pauseForOverlay);
+    return () => window.removeEventListener(PAUSE_MEDIA_EVENT, pauseForOverlay);
+  }, []);
+
   const playAudio = (e: React.MouseEvent) => {
     e.stopPropagation();
     const audio = audioRef.current;
@@ -65,7 +75,13 @@ export default function EpisodeChoiceCard({
       } ${disabled ? 'opacity-60 pointer-events-none' : ''} ${readOnly && !isSelected ? 'opacity-45' : ''}`}
     >
       {audioUrl && (
-        <audio ref={audioRef} src={audioUrl} preload="none" onEnded={() => setPlaying(false)} />
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          preload="none"
+          onEnded={() => setPlaying(false)}
+          onPause={() => setPlaying(false)}
+        />
       )}
       <div className="flex items-start gap-3">
         <span
