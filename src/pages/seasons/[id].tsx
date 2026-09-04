@@ -88,6 +88,13 @@ type EpisodeData = {
     partIndex?: number | null;
     status: string;
     audioUrl: string | null;
+    text?: string;
+    durationSeconds?: number | null;
+    readingAlignment?: {
+      status?: 'estimated' | 'exact' | 'failed';
+      estimatedRanges?: Array<{ start: number; end: number; startSeconds: number; endSeconds: number }>;
+      exactRanges?: Array<{ start: number; end: number; startSeconds: number; endSeconds: number }>;
+    } | null;
   }[];
   generationStatus: string;
 };
@@ -1023,7 +1030,17 @@ export default function SeasonPage() {
         (chunk) => ['pending', 'queued', 'processing'].includes(chunk.status) && !chunk.audioUrl,
       ),
     );
-    if (!hasPendingAudio) {
+    const hasPendingReadingAlignment = Boolean(
+      activeEpisode.audioChunks?.some(
+        (chunk) => chunk.type === 'chapter' && chunk.audioUrl && chunk.readingAlignment?.status === 'estimated',
+      ) && season.generationJobs.some(
+        (job) =>
+          ['audio_reading_alignment', 'prepared_audio_reading_alignment'].includes(job.jobType) &&
+          ['pending', 'processing'].includes(job.status) &&
+          job.episodeId === activeEpisode.episodeId,
+      ),
+    );
+    if (!hasPendingAudio && !hasPendingReadingAlignment) {
       return;
     }
 
@@ -1065,8 +1082,18 @@ export default function SeasonPage() {
         (chunk) => ['pending', 'queued', 'processing'].includes(chunk.status) && !chunk.audioUrl,
       ),
     );
+    const hasPendingReadingAlignment = Boolean(
+      activeEpisode?.audioChunks?.some(
+        (chunk) => chunk.type === 'chapter' && chunk.audioUrl && chunk.readingAlignment?.status === 'estimated',
+      ) && season.generationJobs.some(
+        (job) =>
+          ['audio_reading_alignment', 'prepared_audio_reading_alignment'].includes(job.jobType) &&
+          ['pending', 'processing'].includes(job.status) &&
+          job.episodeId === activeEpisode.episodeId,
+      ),
+    );
 
-    if (!activeEpisode?.episodeId || !hasPendingAudio) {
+    if (!activeEpisode?.episodeId || (!hasPendingAudio && !hasPendingReadingAlignment)) {
       return;
     }
 

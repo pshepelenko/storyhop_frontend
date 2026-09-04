@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import {
   Button,
@@ -24,6 +24,11 @@ type DemoAudioChunk = {
   choiceId?: string | null;
   audioUrl?: string | null;
   durationSeconds?: number | null;
+  readingAlignment?: {
+    status?: 'estimated' | 'exact' | 'failed';
+    estimatedRanges?: Array<{ start: number; end: number; startSeconds: number; endSeconds: number }>;
+    exactRanges?: Array<{ start: number; end: number; startSeconds: number; endSeconds: number }>;
+  } | null;
 };
 
 type DemoChoice = {
@@ -101,6 +106,7 @@ export default function DemoStoryPage() {
   const [confirmingChoiceId, setConfirmingChoiceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeReadingRange, setActiveReadingRange] = useState<{ start: number; end: number } | null>(null);
 
   const loadStory = async () => {
     setLoading(true);
@@ -143,6 +149,20 @@ export default function DemoStoryPage() {
     .map((choice) => findAudioChunk(currentNode.audioChunks, 'choice', choice.id)?.audioUrl)
     .filter(Boolean) as string[] | undefined;
   const autoQueue = [introAudioUrl, ...(choiceAudioUrls || [])].filter(Boolean) as string[];
+  const handleTimelinePosition = useCallback((position: { segmentTime: number }) => {
+    const alignment = chapterAudio?.readingAlignment;
+    const ranges = alignment?.status === 'exact' && alignment.exactRanges?.length
+      ? alignment.exactRanges
+      : alignment?.estimatedRanges || [];
+    const active = ranges.find((range) =>
+      position.segmentTime >= range.startSeconds && position.segmentTime < range.endSeconds,
+    ) || ranges.filter((range) => range.startSeconds <= position.segmentTime).at(-1) || null;
+    setActiveReadingRange((previous) =>
+      previous?.start === active?.start && previous?.end === active?.end
+        ? previous
+        : active ? { start: active.start, end: active.end } : null,
+    );
+  }, [chapterAudio?.readingAlignment]);
 
   const goToChoice = (choiceId: string) => {
     if (!currentNode) return;
@@ -154,6 +174,7 @@ export default function DemoStoryPage() {
       captureAnalyticsEvent('demo_completed', { step_count: path.length + 1 });
     }
     setCurrentNodeKey(choice.targetNodeKey);
+    setActiveReadingRange(null);
     setPath((prev) => [...prev, choice.targetNodeKey]);
     setConfirmingChoiceId(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -163,6 +184,7 @@ export default function DemoStoryPage() {
     if (!story) return;
     captureAnalyticsEvent('demo_restarted');
     setCurrentNodeKey(story.startNodeKey);
+    setActiveReadingRange(null);
     setPath([story.startNodeKey]);
     setConfirmingChoiceId(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -215,6 +237,7 @@ export default function DemoStoryPage() {
               autoPlayOnMount
               autoPlayToken={currentNode.nodeKey}
               status={chapterAudioUrl ? 'ready' : 'missing'}
+              onTimelinePosition={handleTimelinePosition}
             />
 
             <VocabPracticeRow
@@ -227,6 +250,7 @@ export default function DemoStoryPage() {
                 <VocabHighlightText
                   text={currentNode.chapterText}
                   vocabulary={currentNode.highlightedVocabulary}
+                  activeRange={activeReadingRange}
                 />
               </div>
             </Card>

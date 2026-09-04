@@ -7,10 +7,16 @@ export type VocabWord = {
   meaningInContext?: string;
 };
 
+export type ReadingTextRange = {
+  start: number;
+  end: number;
+};
+
 type VocabHighlightTextProps = {
   text: string;
   vocabulary?: VocabWord[];
   className?: string;
+  activeRange?: ReadingTextRange | null;
 };
 
 type VocabMatch = {
@@ -101,37 +107,53 @@ function highlightVocab(
   text: string,
   vocab: VocabWord[],
   onSelect: (word: VocabWord) => void,
+  activeRange?: ReadingTextRange | null,
 ): React.ReactNode[] {
   const matches = findVocabularyMatches(text, vocab);
-  if (!matches.length) return [text];
+  const boundaries = new Set<number>([0, text.length]);
+  for (const match of matches) {
+    boundaries.add(match.start);
+    boundaries.add(match.end);
+  }
+  if (activeRange) {
+    boundaries.add(Math.max(0, Math.min(text.length, activeRange.start)));
+    boundaries.add(Math.max(0, Math.min(text.length, activeRange.end)));
+  }
 
   const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  for (const match of matches) {
-    if (match.start > lastIndex) {
-      parts.push(text.slice(lastIndex, match.start));
+  const ordered = [...boundaries].sort((left, right) => left - right);
+  for (let index = 0; index < ordered.length - 1; index += 1) {
+    const start = ordered[index];
+    const end = ordered[index + 1];
+    if (start === end) continue;
+    const value = text.slice(start, end);
+    const match = matches.find((item) => item.start <= start && item.end >= end);
+    const isActive = Boolean(activeRange && start < activeRange.end && end > activeRange.start);
+    const readingClass = isActive
+      ? 'rounded bg-[color:var(--sh-lavender)]/20 text-sh-foreground shadow-[inset_0_-2px_0_var(--sh-lavender)] transition-colors duration-150'
+      : '';
+    if (match) {
+      parts.push(
+        <button
+          type="button"
+          key={`hl-${start}-${end}`}
+          className={`inline px-0.5 font-medium text-sh-forest underline decoration-sh-forest/40 underline-offset-2 ${isActive ? readingClass : 'rounded bg-sh-forest-soft'}`}
+          onClick={() => onSelect(match.entry)}
+          aria-label={`Explain ${value}`}
+        >
+          {value}
+        </button>,
+      );
+    } else if (isActive) {
+      parts.push(<span key={`reading-${start}-${end}`} className={readingClass}>{value}</span>);
+    } else {
+      parts.push(value);
     }
-    const matchedWord = text.slice(match.start, match.end);
-    parts.push(
-      <button
-        type="button"
-        key={`hl-${match.start}`}
-        className="inline rounded bg-sh-forest-soft px-0.5 font-medium text-sh-forest underline decoration-sh-forest/40 underline-offset-2"
-        onClick={() => onSelect(match.entry)}
-        aria-label={`Explain ${matchedWord}`}
-      >
-        {matchedWord}
-      </button>,
-    );
-    lastIndex = match.end;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
   }
   return parts;
 }
 
-export default function VocabHighlightText({ text, vocabulary = [], className = '' }: VocabHighlightTextProps) {
+export default function VocabHighlightText({ text, vocabulary = [], className = '', activeRange = null }: VocabHighlightTextProps) {
   const [selectedWord, setSelectedWord] = useState<VocabWord | null>(null);
 
   useEffect(() => {
@@ -145,7 +167,7 @@ export default function VocabHighlightText({ text, vocabulary = [], className = 
 
   return (
     <>
-      <span className={className}>{highlightVocab(text, vocabulary, setSelectedWord)}</span>
+      <span className={className}>{highlightVocab(text, vocabulary, setSelectedWord, activeRange)}</span>
       {selectedWord && (
         <ModalOverlay
           className="items-center justify-center"

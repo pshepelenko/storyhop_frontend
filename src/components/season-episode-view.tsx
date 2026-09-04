@@ -27,6 +27,11 @@ interface AudioChunk {
   status: string;
   audioUrl?: string | null;
   durationSeconds?: number | null;
+  readingAlignment?: {
+    status?: 'estimated' | 'exact' | 'failed';
+    estimatedRanges?: Array<{ start: number; end: number; startSeconds: number; endSeconds: number }>;
+    exactRanges?: Array<{ start: number; end: number; startSeconds: number; endSeconds: number }>;
+  } | null;
 }
 
 interface VocabWord {
@@ -203,6 +208,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   const inlineSpeakingCopy = INLINE_SPEAKING_COPY[uiLanguage];
   const [confirmingChoiceId, setConfirmingChoiceId] = useState<string | null>(null);
   const [chapterAutoplayToken, setChapterAutoplayToken] = useState<string | null>(null);
+  const [activeReadingRange, setActiveReadingRange] = useState<{ start: number; end: number } | null>(null);
   const [heardTranscript, setHeardTranscript] = useState('');
   const displayedSpeakingPrompt = speakingPrompt
     ?.trim()
@@ -252,6 +258,21 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
     ? `chapter:${episodeNumber}:${chapterUrls.join('|')}`
     : `waiting:${episodeNumber}:parts`;
 
+  const handleTimelinePosition = useCallback((position: { segmentIndex: number; segmentTime: number }) => {
+    const alignment = chapterChunks[position.segmentIndex]?.readingAlignment;
+    const ranges = alignment?.status === 'exact' && alignment.exactRanges?.length
+      ? alignment.exactRanges
+      : alignment?.estimatedRanges || [];
+    const active = ranges.find((range) =>
+      position.segmentTime >= range.startSeconds && position.segmentTime < range.endSeconds,
+    ) || ranges.filter((range) => range.startSeconds <= position.segmentTime).at(-1) || null;
+    setActiveReadingRange((previous) =>
+      previous?.start === active?.start && previous?.end === active?.end
+        ? previous
+        : active ? { start: active.start, end: active.end } : null,
+    );
+  }, [chapterChunks]);
+
   const speakingRecorder = useSpeechRecorder({
     source: 'inline',
     onRecordedAudio: async (audio) => {
@@ -272,6 +293,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
 
   useEffect(() => {
     setHeardTranscript('');
+    setActiveReadingRange(null);
   }, [episodeId]);
 
   useEffect(() => {
@@ -350,6 +372,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
         }
         seasonId={seasonId}
         episodeId={episodeId}
+        onTimelinePosition={handleTimelinePosition}
       />
 
       {highlightedVocabulary && highlightedVocabulary.length > 0 && (
@@ -362,7 +385,7 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
 
       <div className="mb-6">
         <div className={`font-story leading-relaxed whitespace-pre-line text-sh-foreground ${readingTextSize === 'small' ? 'text-sm' : readingTextSize === 'large' ? 'text-lg' : 'text-base'}`}>
-          <VocabHighlightText text={chapterText} vocabulary={highlightedVocabulary} />
+          <VocabHighlightText text={chapterText} vocabulary={highlightedVocabulary} activeRange={activeReadingRange} />
         </div>
 
         {displayedSpeakingPrompt && (

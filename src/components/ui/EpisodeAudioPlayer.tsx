@@ -21,6 +21,7 @@ type EpisodeAudioPlayerProps = {
   seasonId?: string;
   episodeId?: string;
   onPlay?: () => void;
+  onTimelinePosition?: (position: { segmentIndex: number; segmentTime: number; absoluteTime: number }) => void;
 };
 
 function formatTime(seconds: number) {
@@ -115,6 +116,7 @@ export default function EpisodeAudioPlayer({
   seasonId,
   episodeId,
   onPlay,
+  onTimelinePosition,
 }: EpisodeAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const segmentIndexRef = useRef(0);
@@ -128,6 +130,7 @@ export default function EpisodeAudioPlayer({
   const reportedMilestoneRef = useRef(false);
   const onEndedRef = useRef(onEnded);
   const onPlayRef = useRef(onPlay);
+  const onTimelinePositionRef = useRef(onTimelinePosition);
 
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -177,7 +180,8 @@ export default function EpisodeAudioPlayer({
   useEffect(() => {
     onEndedRef.current = onEnded;
     onPlayRef.current = onPlay;
-  }, [onEnded, onPlay]);
+    onTimelinePositionRef.current = onTimelinePosition;
+  }, [onEnded, onPlay, onTimelinePosition]);
 
   useEffect(() => {
     playlistRef.current = playlist;
@@ -210,6 +214,12 @@ export default function EpisodeAudioPlayer({
       return;
     }
     const absolute = elapsedBefore(index, durations) + localCurrent;
+
+    onTimelinePositionRef.current?.({
+      segmentIndex: index,
+      segmentTime: localCurrent,
+      absoluteTime: absolute,
+    });
 
     setCurrent(total > 0 ? Math.min(absolute, total) : localCurrent);
     if (total > 0) {
