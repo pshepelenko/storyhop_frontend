@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import EpisodeReaderHeader from '@/components/episode/EpisodeReaderHeader';
 import { useReadingTextSize } from '@/lib/use-reading-text-size';
@@ -9,6 +9,7 @@ import {
   useSpeechRecorder,
 } from '@/lib/speech-recorder';
 import { imageAssets } from '@/data/image-assets';
+import { createChapterRangeProjectors } from '@/lib/reading-alignment';
 import {
   Button,
   Card,
@@ -231,6 +232,10 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
         .filter((url): url is string => Boolean(url))
     : [];
   const chapterChunk = chapterChunks[0];
+  const chapterRangeProjectors = useMemo(
+    () => createChapterRangeProjectors(chapterText, chapterChunks.map((chunk) => chunk.text || '')),
+    [chapterText, chapterChunks],
+  );
   const chapterAudioUrl = chapterUrls[0] || null;
   const chapterFollowUrls = chapterUrls.slice(1);
   const chapterStatus = chapterPartsReady
@@ -266,12 +271,13 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
     const active = ranges.find((range) =>
       position.segmentTime >= range.startSeconds && position.segmentTime < range.endSeconds,
     ) || ranges.filter((range) => range.startSeconds <= position.segmentTime).at(-1) || null;
+    const projected = chapterRangeProjectors[position.segmentIndex]?.(active || null) || null;
     setActiveReadingRange((previous) =>
-      previous?.start === active?.start && previous?.end === active?.end
+      previous?.start === projected?.start && previous?.end === projected?.end
         ? previous
-        : active ? { start: active.start, end: active.end } : null,
+        : projected,
     );
-  }, [chapterChunks]);
+  }, [chapterChunks, chapterRangeProjectors]);
 
   const speakingRecorder = useSpeechRecorder({
     source: 'inline',
