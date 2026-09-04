@@ -198,6 +198,10 @@ type SeasonData = {
     choiceRecordId: string;
     episodeNumber: number;
     choiceId: string;
+    generationStatus?: 'queued' | 'processing' | 'ready' | 'failed';
+    generationJobId?: string | null;
+    targetEpisodeNumber?: number | null;
+    generationError?: string | null;
     choicePayload?: {
       text?: string;
     };
@@ -1108,6 +1112,47 @@ export default function SeasonPage() {
     };
   }, [season, id, navigatedEpisodeNumber, fetchSeason]);
 
+  useEffect(() => {
+    if (!season || !id) {
+      return;
+    }
+    const sourceEpisode = season.currentEpisode;
+    const selectedChoice = sourceEpisode
+      ? season.selectedChoices.find((choice) => choice.episodeNumber === sourceEpisode.episodeNumber)
+      : null;
+    if (!selectedChoice || !['queued', 'processing'].includes(selectedChoice.generationStatus || '')) {
+      return;
+    }
+
+    let cancelled = false;
+    const refreshTransition = async () => {
+      try {
+        const nextSeason = await fetchSeason(String(id), sourceEpisode?.episodeNumber);
+        if (cancelled) return;
+        const transition = nextSeason.selectedChoices?.find(
+          (choice: SeasonData['selectedChoices'][number]) => choice.episodeNumber === sourceEpisode?.episodeNumber,
+        );
+        if (transition?.generationStatus === 'failed') {
+          setChoiceError(
+            interfaceLanguage === 'russian'
+              ? 'Не удалось подготовить следующую главу. Попробуйте ещё раз.'
+              : 'Could not prepare the next chapter. Try again.',
+          );
+        }
+      } catch (error) {
+        // A transient polling failure must not discard the confirmed choice.
+        console.error(error);
+      }
+    };
+
+    void refreshTransition();
+    const timer = window.setInterval(() => void refreshTransition(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [fetchSeason, id, interfaceLanguage, season]);
+
   if (!season) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-sh-background">
@@ -1150,6 +1195,12 @@ export default function SeasonPage() {
     activeEpisode
       ? season.selectedChoices.find((choice) => choice.episodeNumber === activeEpisode.episodeNumber)?.choiceId || null
       : null;
+  const selectedChoiceRecord = activeEpisode
+    ? season.selectedChoices.find((choice) => choice.episodeNumber === activeEpisode.episodeNumber) || null
+    : null;
+  const choiceGenerationPending = Boolean(
+    selectedChoiceRecord && ['queued', 'processing'].includes(selectedChoiceRecord.generationStatus || ''),
+  );
   const pendingTtsJobs =
     activeEpisode?.audioChunks?.filter(
       (chunk) => ['pending', 'queued', 'processing'].includes(chunk.status) && !chunk.audioUrl,
@@ -1234,13 +1285,18 @@ export default function SeasonPage() {
   const parentLabel = formatParentLabel(season.childProfile.childName);
   const isStuckAfterChoice = Boolean(
     selectedChoiceForActiveEpisode &&
+      !choiceGenerationPending &&
       currentEpisode &&
       activeEpisode?.episodeId === currentEpisode.episodeId &&
       displayEpisodeNumber === currentEpisode.episodeNumber &&
       !generatedEpisodes.some((episode) => episode.episodeNumber === displayEpisodeNumber + 1),
   );
   const choiceResumeHint =
-    isStuckAfterChoice
+    choiceGenerationPending
+      ? interfaceLanguage === 'russian'
+        ? 'Готовим следующую главу. Можно оставить страницу: прогресс сохранён.'
+        : 'Preparing the next chapter. You can leave this page: your progress is saved.'
+      : isStuckAfterChoice
       ? interfaceLanguage === 'russian'
         ? 'Следующий эпизод не был создан из-за сбоя. Нажмите кнопку ниже, чтобы продолжить.'
         : 'The next episode was not created due to an error. Use the button below to continue.'
@@ -1406,7 +1462,7 @@ export default function SeasonPage() {
             }
             selectedChoiceId={choiceLoadingId || selectedChoiceForActiveEpisode}
             voiceLoadingPhrase={voiceLoadingPhrase}
-            choiceLoading={choiceLoadingId !== null}
+            choiceLoading={choiceLoadingId !== null || choiceGenerationPending}
             choiceResumeHint={choiceResumeHint}
             resumeChoiceLabel={resumeChoiceLabel}
             onResumeStuckChoice={
