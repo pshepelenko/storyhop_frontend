@@ -1,8 +1,7 @@
 import { useRouter } from 'next/router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import LanguageSelector from '@/components/home/LanguageSelector';
-import { StoryPracticeLaunchers } from '@/components/practice/PracticeOpportunityCards';
 import WritingPracticePrompt from '@/components/practice/WritingPracticePrompt';
 import SpeakingPracticeFlow from '@/components/practice/SpeakingPracticeFlow';
 import WritingPracticeFlow from '@/components/practice/WritingPracticeFlow';
@@ -341,6 +340,8 @@ export default function SeasonPage() {
   const [inviteError, setInviteError] = useState('');
   const [homeSummary, setHomeSummary] = useState<{ crystalBalance: number; hasSeasons: boolean } | null>(null);
   const [writingPromptOpen, setWritingPromptOpen] = useState(false);
+  const shownSpeakingRecapRef = useRef<string | null>(null);
+  const writingPromptEpisodeRef = useRef<string | null>(null);
   const practiceModal = router.query.practice === 'speaking' || router.query.practice === 'writing'
     ? String(router.query.practice)
     : null;
@@ -996,6 +997,62 @@ export default function SeasonPage() {
     setWritingPromptOpen(true);
   }, [practiceModal, season?.bonusPracticeSummary?.storyLaunch.writingPromptAvailable]);
 
+  useEffect(() => {
+    const storyLaunch = season?.bonusPracticeSummary?.storyLaunch;
+    const writingIsPresent = Boolean(
+      writingPromptOpen || practiceModal === 'writing' || storyLaunch?.writingPromptAvailable,
+    );
+    if (!season || !writingIsPresent) {
+      return;
+    }
+
+    const episodeNumber = season.currentEpisode?.episodeNumber
+      ?? season.storyState?.seasonProgress?.currentEpisodeNumber
+      ?? 1;
+    writingPromptEpisodeRef.current = `${season.seasonId}:${episodeNumber}`;
+  }, [practiceModal, season, writingPromptOpen]);
+
+  useEffect(() => {
+    const storyLaunch = season?.bonusPracticeSummary?.storyLaunch;
+    if (
+      !season ||
+      practiceModal ||
+      writingPromptOpen ||
+      storyLaunch?.writingPromptAvailable ||
+      !storyLaunch?.speakingAvailable ||
+      storyLaunch.speakingType !== 'speaking_recap'
+    ) {
+      return;
+    }
+
+    const episodeNumber = season.currentEpisode?.episodeNumber
+      ?? season.storyState?.seasonProgress?.currentEpisodeNumber
+      ?? 1;
+    const episodeKey = `${season.seasonId}:${episodeNumber}`;
+    if (writingPromptEpisodeRef.current === episodeKey) {
+      return;
+    }
+    const recapKey = `${season.seasonId}:${episodeNumber}:${storyLaunch.speakingType}`;
+    if (shownSpeakingRecapRef.current === recapKey) {
+      return;
+    }
+
+    // A recap interrupts reading as a modal invitation, never as an inline card
+    // that pushes the new chapter below the fold.
+    shownSpeakingRecapRef.current = recapKey;
+    if (!router.isReady) {
+      return;
+    }
+    void router.replace(
+      {
+        pathname: router.pathname,
+        query: { ...router.query, practice: 'speaking' },
+      },
+      undefined,
+      { shallow: true },
+    );
+  }, [practiceModal, router, season, writingPromptOpen]);
+
   const dismissWritingPrompt = useCallback(async () => {
     setWritingPromptOpen(false);
     if (!season?.seasonId) return;
@@ -1308,7 +1365,7 @@ export default function SeasonPage() {
         : `Continue to episode ${displayEpisodeNumber + 1}`
       : null;
 
-  const openPracticeModal = (type: 'speaking' | 'writing') => {
+  function openPracticeModal(type: 'speaking' | 'writing') {
     if (!router.isReady) {
       return;
     }
@@ -1320,8 +1377,8 @@ export default function SeasonPage() {
       undefined,
       { shallow: true },
     );
-  };
-  const closePracticeModal = () => {
+  }
+  function closePracticeModal() {
     if (!router.isReady) {
       return;
     }
@@ -1335,7 +1392,7 @@ export default function SeasonPage() {
       undefined,
       { shallow: true },
     );
-  };
+  }
 
   const startWritingFromPrompt = async () => {
     await dismissWritingPrompt();
@@ -1371,16 +1428,6 @@ export default function SeasonPage() {
             chapterText={activeEpisode?.chapterText || currentEpisode!.chapterText}
             speakingPrompt={activeEpisode?.speakingPrompt || currentEpisode!.speakingPrompt}
             speakingCompleted={Boolean(activeEpisode?.speaking?.completed)}
-            bonusPracticeLauncher={
-              season.bonusPracticeSummary
-                ? (
-                  <StoryPracticeLaunchers
-                    summary={season.bonusPracticeSummary}
-                    onOpen={openPracticeModal}
-                  />
-                )
-                : null
-            }
             introOptionsPhrase={activeEpisode?.introOptionsPhrase || currentEpisode!.introOptionsPhrase}
             highlightedVocabulary={activeEpisode?.highlightedVocabulary || currentEpisode!.highlightedVocabulary}
             storyIntro={storyIntro}
