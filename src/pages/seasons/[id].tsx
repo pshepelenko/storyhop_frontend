@@ -1642,9 +1642,13 @@ export default function SeasonPage() {
       )}
 
       {practiceModal && (
-        <ModalOverlay className="items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+        <ModalOverlay
+          className="items-start justify-center overflow-y-auto !pt-4 sm:items-center sm:!pt-6"
+          role="dialog"
+          aria-modal="true"
+        >
           <button type="button" className="absolute inset-0" aria-label={ui.close} onClick={closePracticeModal} />
-          <div className="relative z-10 w-full max-w-2xl">
+          <div className="relative z-10 w-full max-w-2xl py-2 sm:my-auto sm:py-0">
             {practiceModal === 'speaking' ? (
               <SpeakingPracticeFlow
                 seasonId={season.seasonId}

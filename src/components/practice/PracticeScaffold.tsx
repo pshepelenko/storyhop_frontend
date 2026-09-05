@@ -71,7 +71,9 @@ export default function PracticeScaffold({
           <div
             className={
               headerVariant === 'hero'
-                ? 'px-6 pb-5 pt-8 text-center sm:px-9 sm:pb-7 sm:pt-10'
+                ? compactMobile
+                  ? 'px-5 pb-3 pt-5 text-center sm:px-9 sm:pb-7 sm:pt-10'
+                  : 'px-6 pb-5 pt-8 text-center sm:px-9 sm:pb-7 sm:pt-10'
                 : 'px-6 pb-2 pt-6 text-left sm:px-9'
             }
           >
@@ -88,7 +90,7 @@ export default function PracticeScaffold({
               <h1
                 className={
                   headerVariant === 'hero'
-                    ? 'mt-4 text-[2rem] font-semibold leading-tight text-sh-foreground sm:text-[3rem]'
+                    ? `${compactMobile ? 'mt-2 text-[1.75rem] sm:mt-4 sm:text-[3rem]' : 'mt-4 text-[2rem] sm:text-[3rem]'} font-semibold leading-tight text-sh-foreground`
                     : 'mt-2 text-xl font-semibold leading-tight text-sh-foreground sm:text-2xl'
                 }
               >
@@ -99,7 +101,7 @@ export default function PracticeScaffold({
               <p
                 className={
                   headerVariant === 'hero'
-                    ? 'mx-auto mt-3 max-w-[34rem] text-base leading-relaxed text-sh-muted sm:text-xl'
+                    ? `${compactMobile ? 'mt-2 text-sm sm:mt-3 sm:text-xl' : 'mt-3 text-base sm:text-xl'} mx-auto max-w-[34rem] leading-relaxed text-sh-muted`
                     : 'mt-2 max-w-[34rem] text-sm leading-relaxed text-sh-muted sm:text-base'
                 }
               >
@@ -110,7 +112,7 @@ export default function PracticeScaffold({
         )}
         <div className={`${badge || title || subtitle ? 'border-t border-sh-border/80' : ''} ${compactMobile ? 'px-4 py-3 sm:px-9 sm:py-8' : 'px-6 py-6 sm:px-9 sm:py-8'}`}>{children}</div>
         {(footer || note) && (
-          <div className="border-t border-sh-border/80 px-6 py-5 sm:px-9 sm:py-6">
+          <div className={`border-t border-sh-border/80 ${compactMobile ? 'px-5 py-4 sm:px-9 sm:py-6' : 'px-6 py-5 sm:px-9 sm:py-6'}`}>
             {footer}
             {note && <div className="pt-3 text-center text-xs leading-relaxed text-sh-muted sm:text-sm">{note}</div>}
           </div>

@@ -246,6 +246,7 @@ export default function SpeakingPracticeFlow({
         title={copy.speakIntroTitle}
         subtitle={isRussian ? 'Повтори фразу из этой главы' : 'Repeat a phrase from this chapter'}
         width="narrow"
+        compactMobile
         crystals={crystalBalance}
         onBack={onClose}
         footer={
@@ -269,16 +270,16 @@ export default function SpeakingPracticeFlow({
         }
         note={isRussian ? 'Можно пропустить и продолжить историю' : 'You can skip this and continue the story'}
       >
-        <div className="space-y-5">
-          <div className="mx-auto inline-flex rounded-full bg-[color:var(--sh-lavender)]/10 px-4 py-2 text-sm font-semibold text-[color:var(--sh-lavender)]">
+        <div className="space-y-4 sm:space-y-5">
+          <div className="mx-auto inline-flex rounded-full bg-[color:var(--sh-lavender)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--sh-lavender)] sm:px-4 sm:py-2 sm:text-sm">
             💎 {copy.speakingReward}
           </div>
           <div className="flex justify-center">
-            <div className="relative h-40 w-40 sm:h-48 sm:w-48">
-              <Image src={imageAssets.referral.chest} alt="" fill className="object-contain" sizes="192px" priority />
+            <div className="relative h-28 w-28 sm:h-48 sm:w-48">
+              <Image src={imageAssets.referral.chest} alt="" fill className="object-contain" sizes="(min-width: 640px) 192px, 112px" priority />
             </div>
           </div>
-          <ul className="mx-auto max-w-sm space-y-2 text-sm leading-6 text-sh-foreground sm:text-base">
+          <ul className="mx-auto max-w-sm space-y-1.5 text-sm leading-5 text-sh-foreground sm:space-y-2 sm:text-base sm:leading-6">
             <li>• {copy.listen}</li>
             <li>• {isRussian ? 'Повтори её вслух' : 'Repeat it out loud'}</li>
             <li>• {isRussian ? 'Получи кристалл' : 'Earn a crystal'}</li>
