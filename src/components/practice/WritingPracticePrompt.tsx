@@ -1,5 +1,5 @@
 import { Button, Card, ModalOverlay } from '@/components/ui';
-import { getUiLanguage } from '@/lib/ui-language';
+import { useUiLanguage } from '@/lib/use-ui-language';
 
 type WritingPracticePromptProps = {
   open: boolean;
@@ -16,9 +16,10 @@ export default function WritingPracticePrompt({
   onStart,
   onDismiss,
 }: WritingPracticePromptProps) {
+  const language = useUiLanguage();
   if (!open) return null;
 
-  const isRussian = getUiLanguage() === 'russian';
+  const isRussian = language === 'russian';
   const titleId = 'writing-practice-prompt-title';
 
   return (

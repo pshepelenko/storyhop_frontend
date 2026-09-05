@@ -11,7 +11,7 @@ import {
   type PracticeOrigin,
   type SpeakingPracticePayload,
 } from '@/lib/bonus-practice';
-import { getUiLanguage } from '@/lib/ui-language';
+import { useUiLanguage } from '@/lib/use-ui-language';
 import { captureAnalyticsEvent } from '@/lib/analytics';
 import {
   getSpeechRecorderErrorMessage,
@@ -27,6 +27,7 @@ type SpeakingPracticeFlowProps = {
   crystalBalance?: number;
   onClose: () => void;
   onSeasonRefresh?: () => Promise<void> | void;
+  onStoryRecapClosed?: () => void;
 };
 
 export default function SpeakingPracticeFlow({
@@ -36,8 +37,9 @@ export default function SpeakingPracticeFlow({
   crystalBalance,
   onClose,
   onSeasonRefresh,
+  onStoryRecapClosed,
 }: SpeakingPracticeFlowProps) {
-  const language = getUiLanguage();
+  const language = useUiLanguage();
   const copy = practiceCopy(language);
   const isRussian = language === 'russian';
   const [payload, setPayload] = useState<SpeakingPracticePayload | null>(null);
@@ -49,6 +51,7 @@ export default function SpeakingPracticeFlow({
   const [earned, setEarned] = useState(0);
   const [successfulSteps, setSuccessfulSteps] = useState<number[]>([]);
   const [loadingNextPractice, setLoadingNextPractice] = useState(false);
+  const [skipping, setSkipping] = useState(false);
 
   const activeItem = useMemo(() => {
     if (!payload) return null;
@@ -146,8 +149,25 @@ export default function SpeakingPracticeFlow({
     },
   });
 
+  useEffect(() => {
+    if (loading || (payload?.type && activeItem)) {
+      return;
+    }
+
+    if (origin === 'story') {
+      onStoryRecapClosed?.();
+    }
+    onClose();
+  }, [activeItem, loading, onClose, onStoryRecapClosed, origin, payload?.type]);
+
   const skip = async () => {
+    if (skipping) {
+      return;
+    }
+
     captureAnalyticsEvent('speaking_practice_skipped', { origin, practice_type: payload?.type });
+    setError(null);
+    setSkipping(true);
     try {
       await apiPost(`/seasons/${seasonId}/bonus-practice/speaking/skip`, {
         origin,
@@ -156,10 +176,20 @@ export default function SpeakingPracticeFlow({
         episodeId: activeItem?.episodeId || undefined,
         targetPhrase: activeItem?.phraseText || undefined,
       });
+      if (origin === 'story' && payload?.type === 'speaking_recap') {
+        onStoryRecapClosed?.();
+      }
+      onClose();
+      void Promise.resolve(onSeasonRefresh?.()).catch((refreshError) => {
+        console.error(refreshError);
+      });
     } catch (skipError) {
       console.error(skipError);
+      captureAnalyticsEvent('speaking_practice_skip_failed', { origin, practice_type: payload?.type });
+      setError(copy.skipFailed);
+    } finally {
+      setSkipping(false);
     }
-    onClose();
   };
 
   if (loading) {
@@ -167,11 +197,7 @@ export default function SpeakingPracticeFlow({
   }
 
   if (!payload?.type || !activeItem) {
-    if (origin === 'home') {
-      onClose();
-      return null;
-    }
-    return <div className="py-10 text-center text-sm text-sh-muted">{copy.pendingUnavailable}</div>;
+    return null;
   }
 
   const progressSlots = payload.type === 'speaking_recap' ? payload.items?.length || 3 : 1;
@@ -263,12 +289,18 @@ export default function SpeakingPracticeFlow({
               fullWidth
               className="!text-sh-muted hover:!bg-transparent hover:!text-sh-foreground"
               onClick={skip}
+              disabled={skipping}
             >
               {copy.skipForNow}
             </Button>
           </div>
         }
-        note={isRussian ? 'Можно пропустить и продолжить историю' : 'You can skip this and continue the story'}
+        note={
+          <>
+            {error ? <p className="pb-2 text-red-600">{error}</p> : null}
+            <p>{isRussian ? 'Можно пропустить и продолжить историю' : 'You can skip this and continue the story'}</p>
+          </>
+        }
       >
         <div className="space-y-4 sm:space-y-5">
           <div className="mx-auto inline-flex rounded-full bg-[color:var(--sh-lavender)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--sh-lavender)] sm:px-4 sm:py-2 sm:text-sm">
@@ -445,6 +477,7 @@ export default function SpeakingPracticeFlow({
             variant="ghost"
             className="!text-sh-muted hover:!bg-transparent hover:!text-sh-foreground"
             onClick={skip}
+            disabled={skipping}
           >
             {copy.skipForNow}
           </Button>

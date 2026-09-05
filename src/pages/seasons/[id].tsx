@@ -12,6 +12,7 @@ import { formatParentLabel } from '@/data/home-display';
 import type { BonusPracticeSeasonSummary } from '@/lib/bonus-practice';
 import { apiFetchAsGuest } from '@/lib/api-client';
 import { captureAnalyticsEvent } from '@/lib/analytics';
+import { useUiLanguage } from '@/lib/use-ui-language';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -303,23 +304,10 @@ const getIllustrationPlaceholderPhase = (input: {
   return 'unlockable';
 };
 
-const getInterfaceLanguage = (): 'russian' | 'english' => {
-  if (typeof window === 'undefined') {
-    return 'english';
-  }
-
-  const saved = localStorage.getItem('uiLanguage') as 'russian' | 'english' | null;
-  if (saved === 'russian' || saved === 'english') {
-    return saved;
-  }
-
-  return window.navigator.language.toLowerCase().startsWith('ru') ? 'russian' : 'english';
-};
-
 export default function SeasonPage() {
   const router = useRouter();
   const { id } = router.query;
-  const [interfaceLanguage, setInterfaceLanguage] = useState<'russian' | 'english'>('english');
+  const interfaceLanguage = useUiLanguage();
   const [season, setSeason] = useState<SeasonData | null>(null);
   const [heroPreferences, setHeroPreferences] = useState(emptyHeroPreferences);
   const [heroLoading, setHeroLoading] = useState(false);
@@ -448,8 +436,6 @@ export default function SeasonPage() {
   }, [router]);
 
   useEffect(() => {
-    setInterfaceLanguage(getInterfaceLanguage());
-
     if (!id || !router.isReady) {
       return;
     }
@@ -1066,6 +1052,16 @@ export default function SeasonPage() {
     }
   }, [season?.seasonId]);
 
+  const markStorySpeakingRecapClosed = useCallback(() => {
+    if (!season) {
+      return;
+    }
+    const episodeNumber = season.currentEpisode?.episodeNumber
+      ?? season.storyState?.seasonProgress?.currentEpisodeNumber
+      ?? 1;
+    shownSpeakingRecapRef.current = `${season.seasonId}:${episodeNumber}:speaking_recap`;
+  }, [season]);
+
   useEffect(() => {
     if (!season || !id) {
       return;
@@ -1655,6 +1651,7 @@ export default function SeasonPage() {
                 origin="story"
                 crystalBalance={crystalBalance}
                 onClose={closePracticeModal}
+                onStoryRecapClosed={markStorySpeakingRecapClosed}
                 onSeasonRefresh={() =>
                   fetchSeason(String(id), navigatedEpisodeNumber ?? undefined)
                 }

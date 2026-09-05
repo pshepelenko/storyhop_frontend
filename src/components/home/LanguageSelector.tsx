@@ -1,5 +1,6 @@
 import { setUiLanguage } from '@/lib/ui-language';
 import { useUiLanguage } from '@/lib/use-ui-language';
+import { apiFetchAsGuest } from '@/lib/api-client';
 
 export default function LanguageSelector() {
   const uiLang = useUiLanguage();
@@ -16,6 +17,12 @@ export default function LanguageSelector() {
         onChange={(e) => {
           const v = e.target.value as 'english' | 'russian';
           setUiLanguage(v);
+          void apiFetchAsGuest('/users/me/preferences', {
+            method: 'PATCH',
+            body: JSON.stringify({ interfaceLanguage: v }),
+          }).catch((error) => {
+            console.error('Could not save interface language', error);
+          });
         }}
         aria-label="Interface language"
       >

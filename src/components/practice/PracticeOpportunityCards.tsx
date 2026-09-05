@@ -1,6 +1,6 @@
 import { Button, Card } from '@/components/ui';
 import type { BonusPracticeHomeSummary, BonusPracticeSeasonSummary } from '@/lib/bonus-practice';
-import { getUiLanguage } from '@/lib/ui-language';
+import { useUiLanguage } from '@/lib/use-ui-language';
 import { practiceCopy } from '@/lib/bonus-practice';
 
 type HomePracticeCardsProps = {
@@ -9,7 +9,7 @@ type HomePracticeCardsProps = {
 };
 
 export function HomePracticeCards({ seasonId, summary }: HomePracticeCardsProps) {
-  const copy = practiceCopy(getUiLanguage());
+  const copy = practiceCopy(useUiLanguage());
 
   return (
     <div className="space-y-3">
@@ -48,7 +48,7 @@ type StoryPracticeLaunchersProps = {
 };
 
 export function StoryPracticeLaunchers({ summary, onOpen }: StoryPracticeLaunchersProps) {
-  const copy = practiceCopy(getUiLanguage());
+  const copy = practiceCopy(useUiLanguage());
   if (!summary.storyLaunch.speakingAvailable) {
     return null;
   }

@@ -12,7 +12,7 @@ import {
   type WritingChallengePayload,
   type WritingPracticePayload,
 } from '@/lib/bonus-practice';
-import { getUiLanguage } from '@/lib/ui-language';
+import { useUiLanguage } from '@/lib/use-ui-language';
 import { captureAnalyticsEvent } from '@/lib/analytics';
 import PracticeScaffold from './PracticeScaffold';
 
@@ -42,7 +42,7 @@ export default function WritingPracticeFlow({
   onClose,
   onSeasonRefresh,
 }: WritingPracticeFlowProps) {
-  const language = getUiLanguage();
+  const language = useUiLanguage();
   const copy = practiceCopy(language);
   const isRussian = language === 'russian';
   const [payload, setPayload] = useState<WritingPracticePayload | null>(null);
