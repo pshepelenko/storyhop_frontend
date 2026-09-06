@@ -1178,13 +1178,19 @@ export default function SeasonPage() {
     }
 
     let cancelled = false;
+    let transitioned = false;
     const refreshTransition = async () => {
       try {
         const nextSeason = await fetchSeason(String(id), sourceEpisode?.episodeNumber);
-        if (cancelled) return;
+        if (cancelled || transitioned) return;
         const transition = nextSeason.selectedChoices?.find(
           (choice: SeasonData['selectedChoices'][number]) => choice.episodeNumber === sourceEpisode?.episodeNumber,
         );
+        if (transition?.generationStatus === 'ready' && transition.targetEpisodeNumber) {
+          transitioned = true;
+          await goToEpisode(transition.targetEpisodeNumber);
+          return;
+        }
         if (transition?.generationStatus === 'failed') {
           setChoiceError(
             interfaceLanguage === 'russian'
@@ -1204,7 +1210,7 @@ export default function SeasonPage() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [fetchSeason, id, interfaceLanguage, season]);
+  }, [fetchSeason, goToEpisode, id, interfaceLanguage, season]);
 
   if (!season) {
     return (
