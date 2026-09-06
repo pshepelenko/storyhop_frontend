@@ -1,10 +1,11 @@
 import { Button, Card, ModalOverlay } from '@/components/ui';
-import { useUiLanguage } from '@/lib/use-ui-language';
+import type { UiLanguage } from '@/lib/ui-language';
 
 type WritingPracticePromptProps = {
   open: boolean;
   wordCount: number;
   maxReward: number;
+  language: UiLanguage;
   onStart: () => void;
   onDismiss: () => void;
 };
@@ -13,10 +14,10 @@ export default function WritingPracticePrompt({
   open,
   wordCount,
   maxReward,
+  language,
   onStart,
   onDismiss,
 }: WritingPracticePromptProps) {
-  const language = useUiLanguage();
   if (!open) return null;
 
   const isRussian = language === 'russian';

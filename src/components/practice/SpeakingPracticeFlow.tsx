@@ -11,7 +11,7 @@ import {
   type PracticeOrigin,
   type SpeakingPracticePayload,
 } from '@/lib/bonus-practice';
-import { useUiLanguage } from '@/lib/use-ui-language';
+import type { UiLanguage } from '@/lib/ui-language';
 import { captureAnalyticsEvent } from '@/lib/analytics';
 import {
   getSpeechRecorderErrorMessage,
@@ -25,6 +25,7 @@ type SpeakingPracticeFlowProps = {
   origin: PracticeOrigin;
   launchMode?: PracticeLaunchMode;
   crystalBalance?: number;
+  language: UiLanguage;
   onClose: () => void;
   onSeasonRefresh?: () => Promise<void> | void;
   onStoryRecapClosed?: () => void;
@@ -35,11 +36,11 @@ export default function SpeakingPracticeFlow({
   origin,
   launchMode = 'intro',
   crystalBalance,
+  language,
   onClose,
   onSeasonRefresh,
   onStoryRecapClosed,
 }: SpeakingPracticeFlowProps) {
-  const language = useUiLanguage();
   const copy = practiceCopy(language);
   const isRussian = language === 'russian';
   const [payload, setPayload] = useState<SpeakingPracticePayload | null>(null);

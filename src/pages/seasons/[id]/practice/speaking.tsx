@@ -4,6 +4,7 @@ import AppShell from '@/components/layout/AppShell';
 import SpeakingPracticeFlow from '@/components/practice/SpeakingPracticeFlow';
 import type { PracticeLaunchMode } from '@/lib/bonus-practice';
 import { apiFetchAsGuest } from '@/lib/api-client';
+import { useUiLanguage } from '@/lib/use-ui-language';
 
 type HomeSummary = {
   hasSeasons: boolean;
@@ -12,6 +13,7 @@ type HomeSummary = {
 
 export default function SpeakingPracticePage() {
   const router = useRouter();
+  const language = useUiLanguage();
   const seasonId = String(router.query.id || '');
   const launchMode: PracticeLaunchMode = router.query.entry === 'home-direct' ? 'direct' : 'intro';
   const [summary, setSummary] = useState<HomeSummary | null>(null);
@@ -50,6 +52,7 @@ export default function SpeakingPracticePage() {
           origin="home"
           launchMode={launchMode}
           crystalBalance={summary?.crystalBalance}
+          language={language}
           onClose={() => router.push('/')}
         />
       </div>

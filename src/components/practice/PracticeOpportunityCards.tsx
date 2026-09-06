@@ -18,7 +18,7 @@ export function HomePracticeCards({ seasonId, summary }: HomePracticeCardsProps)
           <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--sh-lavender)]">{copy.bonus}</div>
           <div className="mt-2 text-lg font-semibold text-sh-foreground">{copy.speakIntroTitle}</div>
           <p className="mt-1 text-sm text-sh-muted">
-            {summary.speakingRecap.count} phrases waiting, up to +{summary.speakingRecap.maxReward}
+            {copy.phrasesWaiting(summary.speakingRecap.count, summary.speakingRecap.maxReward)}
           </p>
           <Button href={`/seasons/${seasonId}/practice/speaking`} className="mt-4 w-full">
             {copy.start}
@@ -31,7 +31,7 @@ export function HomePracticeCards({ seasonId, summary }: HomePracticeCardsProps)
           <div className="text-xs font-semibold uppercase tracking-wide text-sh-forest">{copy.bonus}</div>
           <div className="mt-2 text-lg font-semibold text-sh-foreground">{copy.writingIntroTitle}</div>
           <p className="mt-1 text-sm text-sh-muted">
-            {summary.writing.wordCount} words, up to +{summary.writing.maxReward}
+            {copy.wordsWaiting(summary.writing.wordCount, summary.writing.maxReward)}
           </p>
           <Button href={`/seasons/${seasonId}/practice/writing`} className="mt-4 w-full">
             {copy.start}

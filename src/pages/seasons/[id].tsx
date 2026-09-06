@@ -1656,6 +1656,7 @@ export default function SeasonPage() {
                 seasonId={season.seasonId}
                 origin="story"
                 crystalBalance={crystalBalance}
+                language={interfaceLanguage}
                 onClose={closePracticeModal}
                 onStoryRecapClosed={markStorySpeakingRecapClosed}
                 onSeasonRefresh={() =>
@@ -1667,6 +1668,7 @@ export default function SeasonPage() {
                 seasonId={season.seasonId}
                 origin="story"
                 crystalBalance={crystalBalance}
+                language={interfaceLanguage}
                 onClose={closePracticeModal}
                 onSeasonRefresh={() =>
                   fetchSeason(String(id), navigatedEpisodeNumber ?? undefined)
@@ -1681,6 +1683,7 @@ export default function SeasonPage() {
         open={writingPromptOpen && !practiceModal}
         wordCount={season.bonusPracticeSummary?.writing.wordCount || 4}
         maxReward={season.bonusPracticeSummary?.writing.maxReward || 4}
+        language={interfaceLanguage}
         onStart={startWritingFromPrompt}
         onDismiss={() => void dismissWritingPrompt()}
       />

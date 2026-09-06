@@ -4,7 +4,7 @@ import { Button, Card } from '@/components/ui';
 type PracticeScaffoldProps = {
   badge: string;
   accent?: 'purple' | 'green';
-  backLabel?: string;
+  backLabel: string;
   title?: string;
   subtitle?: string;
   crystals?: number | null;
@@ -20,7 +20,7 @@ type PracticeScaffoldProps = {
 export default function PracticeScaffold({
   badge,
   accent = 'purple',
-  backLabel = 'Back',
+  backLabel,
   title,
   subtitle,
   crystals,

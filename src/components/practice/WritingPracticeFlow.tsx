@@ -12,7 +12,7 @@ import {
   type WritingChallengePayload,
   type WritingPracticePayload,
 } from '@/lib/bonus-practice';
-import { useUiLanguage } from '@/lib/use-ui-language';
+import type { UiLanguage } from '@/lib/ui-language';
 import { captureAnalyticsEvent } from '@/lib/analytics';
 import PracticeScaffold from './PracticeScaffold';
 
@@ -21,6 +21,7 @@ type WritingPracticeFlowProps = {
   origin: PracticeOrigin;
   launchMode?: PracticeLaunchMode;
   crystalBalance?: number;
+  language: UiLanguage;
   onClose: () => void;
   onSeasonRefresh?: () => Promise<void> | void;
 };
@@ -39,10 +40,10 @@ export default function WritingPracticeFlow({
   origin,
   launchMode = 'intro',
   crystalBalance,
+  language,
   onClose,
   onSeasonRefresh,
 }: WritingPracticeFlowProps) {
-  const language = useUiLanguage();
   const copy = practiceCopy(language);
   const isRussian = language === 'russian';
   const [payload, setPayload] = useState<WritingPracticePayload | null>(null);
@@ -59,9 +60,9 @@ export default function WritingPracticeFlow({
   const resultChallenge = completedChallenge || challenge;
   const progressSlots = useMemo(() => Array.from({ length: challenge?.wordCount || 4 }), [challenge?.wordCount]);
   const possibleReward = challenge?.maxReward ?? payload?.maxReward ?? 4;
-  const writingRewardLabel = isRussian ? `До +${possibleReward} кристаллов` : `Up to +${possibleReward} crystals`;
-  const revealAnswerLabel = isRussian ? 'Показать ответ - 0 кристаллов' : 'Show answer - 0 crystals';
-  const skipNote = isRussian ? 'Можно пропустить и продолжить историю' : 'You can skip this and continue the story';
+  const writingRewardLabel = copy.writingRewardCap(possibleReward);
+  const revealAnswerLabel = copy.writingRevealAnswer;
+  const skipNote = copy.writingSkipNote;
 
   useEffect(() => {
     const load = async () => {
@@ -266,8 +267,8 @@ export default function WritingPracticeFlow({
 
   const activeChallenge = challenge as WritingChallengePayload;
   const activeWord = currentWord as NonNullable<WritingChallengePayload['currentWord']>;
-  const countSuffix = isRussian ? `из ${activeChallenge.wordCount} слов` : `of ${activeChallenge.wordCount} words`;
-  const rewardCap = isRussian ? `До +${activeChallenge.wordCount}` : `Up to +${activeChallenge.wordCount}`;
+  const countSuffix = copy.writingProgress(activeChallenge.currentIndex + 1, activeChallenge.wordCount);
+  const rewardCap = copy.writingRewardCap(activeChallenge.wordCount);
 
   const SpeakerIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
@@ -316,9 +317,9 @@ export default function WritingPracticeFlow({
             </div>
           </div>
           <ul className="mx-auto max-w-sm space-y-2 text-sm leading-6 text-sh-foreground sm:text-base">
-            <li>• 4 words</li>
-            <li>• {isRussian ? 'Слушай слово и читай простое объяснение' : 'Listen to the word and read a simple explanation'}</li>
-            <li>• {isRussian ? 'Пиши ответ и получай кристаллы' : 'Write the answer and earn crystals'}</li>
+            <li>• {copy.writingIntroWordCount(payload?.wordCount || 4)}</li>
+            <li>• {copy.writingIntroListenStep}</li>
+            <li>• {copy.writingIntroWriteStep}</li>
             <li>• {revealAnswerLabel}</li>
           </ul>
         </div>
@@ -341,7 +342,7 @@ export default function WritingPracticeFlow({
           <div className="flex flex-col gap-3">
             <Button fullWidth onClick={onClose}>{copy.continueStory}</Button>
             <Button variant="secondary" fullWidth onClick={onClose}>
-              {isRussian ? 'На главную' : 'Go home'}
+              {copy.goHome}
             </Button>
           </div>
         }
@@ -353,7 +354,7 @@ export default function WritingPracticeFlow({
             </div>
           </div>
           <div className="mx-auto inline-flex items-center rounded-[18px] bg-sh-forest-soft px-5 py-3 text-xl font-semibold text-sh-forest">
-            💎 +{resultChallenge?.totalReward || 0} {isRussian ? 'кристаллов' : 'crystals'}
+            💎 +{resultChallenge?.totalReward || 0} {copy.crystalCount(resultChallenge?.totalReward || 0)}
           </div>
         </div>
       </PracticeScaffold>
@@ -377,7 +378,7 @@ export default function WritingPracticeFlow({
       <div className="space-y-3 sm:space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-semibold text-sh-foreground">
-            {activeChallenge.currentIndex + 1} {countSuffix}
+            {countSuffix}
           </div>
           <div className="inline-flex rounded-full bg-sh-forest-soft px-3 py-1.5 text-sm font-semibold text-sh-forest">
             💎 {rewardCap}
@@ -401,7 +402,7 @@ export default function WritingPracticeFlow({
             type="button"
             onClick={playWord}
             className="relative z-10 inline-flex h-16 w-16 items-center justify-center rounded-full border border-sh-forest/15 bg-white text-sh-forest shadow-[var(--sh-shadow)] transition-colors hover:bg-sh-forest-soft"
-            aria-label={isRussian ? 'Прослушать слово' : 'Play word'}
+            aria-label={copy.playWord}
           >
             <SpeakerIcon className="h-7 w-7" />
           </button>
