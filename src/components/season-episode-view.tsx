@@ -288,6 +288,13 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
       onVoiceAttempt(displayedSpeakingPrompt, transcript);
     },
   });
+  const releaseSpeakingRecorder = speakingRecorder.release;
+
+  useEffect(() => {
+    if (speakingCompleted) {
+      releaseSpeakingRecorder();
+    }
+  }, [releaseSpeakingRecorder, speakingCompleted]);
 
   useEffect(() => {
     if (pendingAudioCount > 0) {
@@ -300,7 +307,8 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
   useEffect(() => {
     setHeardTranscript('');
     setActiveReadingRange(null);
-  }, [episodeId]);
+    releaseSpeakingRecorder();
+  }, [episodeId, releaseSpeakingRecorder]);
 
   useEffect(() => {
     return () => {

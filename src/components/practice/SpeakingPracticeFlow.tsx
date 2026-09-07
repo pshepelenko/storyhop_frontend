@@ -149,6 +149,13 @@ export default function SpeakingPracticeFlow({
       }
     },
   });
+  const releaseSpeakingRecorder = speakingRecorder.release;
+
+  useEffect(() => {
+    if (phase !== 'practice') {
+      releaseSpeakingRecorder();
+    }
+  }, [phase, releaseSpeakingRecorder]);
 
   useEffect(() => {
     if (loading || (payload?.type && activeItem)) {

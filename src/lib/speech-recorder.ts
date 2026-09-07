@@ -107,15 +107,19 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
   const onRecordedAudioRef = useRef(onRecordedAudio);
   onRecordedAudioRef.current = onRecordedAudio;
 
-  const release = useCallback(() => {
+  const clearRecording = useCallback(() => {
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
     if (elapsedIntervalRef.current !== null) window.clearInterval(elapsedIntervalRef.current);
     elapsedIntervalRef.current = null;
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
     recorderRef.current = null;
   }, []);
+
+  const release = useCallback(() => {
+    clearRecording();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, [clearRecording]);
 
   const stop = useCallback(() => {
     const recorder = recorderRef.current;
@@ -136,8 +140,12 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
     setPhase('requesting');
     captureAnalyticsEvent('speaking_record_requested', { source });
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const activeStream = streamRef.current?.getAudioTracks().some((track) => track.readyState === 'live')
+        ? streamRef.current
+        : null;
+      const stream = activeStream || await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      captureAnalyticsEvent('speaking_microphone_ready', { source, reused_stream: Boolean(activeStream) });
       const mimeType = MIME_CANDIDATES.find((candidate) => MediaRecorder.isTypeSupported(candidate));
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks: BlobPart[] = [];
@@ -165,7 +173,7 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
         const durationMs = Math.max(Date.now() - startedAtRef.current, 0);
         setElapsedMs(durationMs);
         const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/mp4' });
-        release();
+        clearRecording();
         if (abortedRef.current) return;
         if (!blob.size) {
           setError('empty');
@@ -197,7 +205,7 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
     } finally {
       startingRef.current = false;
     }
-  }, [maxDurationMs, phase, release, source, stop]);
+  }, [clearRecording, maxDurationMs, phase, release, source, stop]);
 
   useEffect(() => release, [release]);
 
@@ -208,6 +216,7 @@ export function useSpeechRecorder({ source, onRecordedAudio, maxDurationMs = 120
     maxSeconds: Math.ceil(maxDurationMs / 1000),
     start,
     stop,
+    release,
     clearError: () => setError(null),
   };
 }
