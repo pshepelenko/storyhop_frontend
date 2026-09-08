@@ -4,12 +4,15 @@ import { ReactNode, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import { Button, Card, ProgressRing } from '@/components/ui';
 import { imageAssets } from '@/data/image-assets';
+import { apiFetchAsGuest } from '@/lib/api-client';
 
-type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'ready' | 'ready_dry_run';
+type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'expired' | 'ready' | 'ready_dry_run';
 
 type GenerationJob = {
   jobType: string;
   status: JobStatus;
+  error?: string | null;
+  payload?: { stage?: string | null };
 };
 
 type SeasonData = {
@@ -72,7 +75,7 @@ export default function SeasonCreatingPage() {
     const bootstrap = async () => {
       if (bootstrapped) return;
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/seasons/${seasonId}/bootstrap`, {
+        await apiFetchAsGuest(`/seasons/${seasonId}/bootstrap`, {
           method: 'POST',
         });
       } catch {
@@ -83,7 +86,7 @@ export default function SeasonCreatingPage() {
 
     const poll = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/seasons/${seasonId}`);
+        const res = await apiFetchAsGuest(`/seasons/${seasonId}`);
         if (!res.ok) throw new Error('Failed to load season');
         const data = await res.json();
         setSeason(data);
@@ -111,6 +114,15 @@ export default function SeasonCreatingPage() {
   const progress = creationComplete ? 100 : Math.max(12, Math.round((doneCount / steps.length) * 100));
   const activeStep = steps.find((step) => step.status === 'active') || steps.find((step) => step.status === 'pending') || steps[steps.length - 1];
   const preview = heroPreviewUrl || coverPreviewUrl ? <VisualPreview heroUrl={heroPreviewUrl} coverUrl={coverPreviewUrl} /> : null;
+  const retryBootstrap = async () => {
+    setError('');
+    try {
+      const response = await apiFetchAsGuest(`/seasons/${seasonId}/bootstrap`, { method: 'POST' });
+      if (!response.ok) throw new Error(`Bootstrap retry failed (${response.status})`);
+    } catch {
+      setError('Не удалось запустить повторную попытку. Проверьте соединение и попробуйте еще раз.');
+    }
+  };
 
   if (error || failed) {
     return (
@@ -122,7 +134,7 @@ export default function SeasonCreatingPage() {
           steps={steps}
           activeMessage={error || 'Один из обязательных шагов завершился ошибкой.'}
           variant="error"
-          primary={<Button onClick={() => router.reload()}>Попробовать еще раз</Button>}
+          primary={<Button onClick={() => void retryBootstrap()}>Попробовать еще раз</Button>}
           secondary={<Button href="/" variant="secondary">На главную</Button>}
           preview={preview}
         />
@@ -166,6 +178,7 @@ export default function SeasonCreatingPage() {
 
 function mapSteps(season: SeasonData | null) {
   const jobs = season?.generationJobs || [];
+  const bootstrapJob = jobs.find((job) => job.jobType === 'season_bootstrap');
   const hasEpisode = Boolean(season?.currentEpisode);
   const audioReady = isAudioReady(season?.currentEpisode?.audioChunks || []);
   const heroReady = Boolean(season?.hero?.heroReferenceImageUrl);
@@ -185,6 +198,23 @@ function mapSteps(season: SeasonData | null) {
 
   if (blockingAudioFailure) {
     statuses[2] = 'failed';
+  }
+
+  const bootstrapStageIndex: Record<string, number> = {
+    framework: 0,
+    season_bible: 0,
+    episode_outline: 0,
+    finalizing: 0,
+    hero: 1,
+    first_episode: 1,
+  };
+  const bootstrapStage = String(bootstrapJob?.payload?.stage || '');
+  const bootstrapIndex = bootstrapStageIndex[bootstrapStage];
+  if (bootstrapJob?.status === 'failed' || bootstrapJob?.status === 'expired' || season?.generationStatus === 'failed') {
+    statuses[bootstrapIndex ?? 0] = 'failed';
+  } else if (bootstrapJob && bootstrapIndex !== undefined) {
+    for (let index = 0; index < bootstrapIndex; index++) statuses[index] = 'done';
+    statuses[bootstrapIndex] = 'active';
   }
 
   return STEPS.map((step, index) => ({
