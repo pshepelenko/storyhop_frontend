@@ -22,6 +22,8 @@ type SeasonData = {
   seasonSetup?: {
     seasonCoverImageUrl?: string | null;
     seasonCoverGenerationStatus?: string | null;
+    heroReferenceImageGenerationStatus?: string | null;
+    heroReferenceImageGenerationError?: string | null;
   };
   hero?: { heroReferenceImageUrl?: string | null; generationStatus?: string } | null;
   currentEpisode?: { title?: string; audioChunks?: { status: string }[] } | null;
@@ -110,10 +112,13 @@ export default function SeasonCreatingPage() {
   const heroPreviewUrl = season?.hero?.heroReferenceImageUrl || null;
   const coverPreviewUrl = season?.seasonSetup?.seasonCoverImageUrl || null;
   const audioReady = isAudioReady(season?.currentEpisode?.audioChunks || []);
+  const visualFailure = season?.seasonSetup?.heroReferenceImageGenerationStatus === 'failed';
   const creationComplete = season?.status === 'episode_ready' && audioReady && Boolean(heroPreviewUrl) && Boolean(coverPreviewUrl);
   const progress = creationComplete ? 100 : Math.max(12, Math.round((doneCount / steps.length) * 100));
   const activeStep = steps.find((step) => step.status === 'active') || steps.find((step) => step.status === 'pending') || steps[steps.length - 1];
-  const preview = heroPreviewUrl || coverPreviewUrl ? <VisualPreview heroUrl={heroPreviewUrl} coverUrl={coverPreviewUrl} /> : null;
+  const preview = heroPreviewUrl || coverPreviewUrl || visualFailure
+    ? <VisualPreview heroUrl={heroPreviewUrl} coverUrl={coverPreviewUrl} failed={visualFailure} />
+    : null;
   const retryBootstrap = async () => {
     setError('');
     try {
@@ -128,13 +133,19 @@ export default function SeasonCreatingPage() {
     return (
       <GenerationShell>
         <GenerationPanel
-          title="Что-то пошло не так"
-          subtitle="Сезон не удалось создать. Попробуйте еще раз или вернитесь домой."
+          title={visualFailure && season?.currentEpisode ? 'Иллюстрации пока недоступны' : 'Что-то пошло не так'}
+          subtitle={visualFailure && season?.currentEpisode
+            ? 'Первый эпизод сохранен. Визуальный образ героя и обложка не появились из-за сбоя сервиса иллюстраций.'
+            : 'Сезон не удалось создать. Попробуйте еще раз или вернитесь домой.'}
           progress={progress}
           steps={steps}
-          activeMessage={error || 'Один из обязательных шагов завершился ошибкой.'}
+          activeMessage={error || (visualFailure
+            ? 'История готова к чтению. Мы не повторяем запрос автоматически, чтобы не запускать новые платные попытки.'
+            : 'Один из обязательных шагов завершился ошибкой.')}
           variant="error"
-          primary={<Button onClick={() => void retryBootstrap()}>Попробовать еще раз</Button>}
+          primary={visualFailure && season?.currentEpisode
+            ? <Button href={`/seasons/${seasonId}`}>Открыть первый эпизод</Button>
+            : <Button onClick={() => void retryBootstrap()}>Попробовать еще раз</Button>}
           secondary={<Button href="/" variant="secondary">На главную</Button>}
           preview={preview}
         />
@@ -186,6 +197,7 @@ function mapSteps(season: SeasonData | null) {
   const episodeReady = season?.status === 'episode_ready' || hasEpisode;
   const frameworkReady = season?.generationStatus === 'ready';
   const visualsReady = heroReady && coverReady;
+  const visualFailure = season?.seasonSetup?.heroReferenceImageGenerationStatus === 'failed';
   const blockingAudioFailure = jobs.some((job) => job.jobType === 'tts_chunk' && job.status === 'failed') && !audioReady;
 
   const statuses: StepState[] = [
@@ -198,6 +210,9 @@ function mapSteps(season: SeasonData | null) {
 
   if (blockingAudioFailure) {
     statuses[2] = 'failed';
+  }
+  if (visualFailure) {
+    statuses[3] = 'failed';
   }
 
   const bootstrapStageIndex: Record<string, number> = {
@@ -305,9 +320,11 @@ function GenerationPanel({
 function VisualPreview({
   heroUrl,
   coverUrl,
+  failed = false,
 }: {
   heroUrl?: string | null;
   coverUrl?: string | null;
+  failed?: boolean;
 }) {
   return (
     <div className="grid gap-3 text-left sm:grid-cols-2">
@@ -325,7 +342,9 @@ function VisualPreview({
             />
           </div>
         ) : (
-          <p className="mt-2 text-sm text-sh-muted">Визуальный образ героя еще готовится.</p>
+          <p className="mt-2 text-sm text-sh-muted">
+            {failed ? 'Генерация остановлена после ошибки сервиса иллюстраций.' : 'Визуальный образ героя еще готовится.'}
+          </p>
         )}
       </div>
       <div className="rounded-[var(--sh-radius)] border border-sh-border bg-white p-3">
@@ -342,7 +361,9 @@ function VisualPreview({
             />
           </div>
         ) : (
-          <p className="mt-2 text-sm text-sh-muted">Генерируем обложку, чтобы она появилась на главной и в библиотеке.</p>
+          <p className="mt-2 text-sm text-sh-muted">
+            {failed ? 'Обложка появится после успешного создания образа героя.' : 'Генерируем обложку, чтобы она появилась на главной и в библиотеке.'}
+          </p>
         )}
       </div>
     </div>
