@@ -336,16 +336,16 @@ const SeasonEpisodeView: React.FC<SeasonEpisodeViewProps> = ({
 
       {storyIntro && (
         <Card className="mb-6 overflow-hidden p-0">
-          {storyIntro.imageUrl && (
-            <img
-              src={storyIntro.imageUrl}
-              alt={storyIntro.title}
-              className="aspect-[4/3] w-full bg-sh-forest-soft object-cover"
-            />
-          )}
           <div className="px-5 py-4">
             {storyIntro.eyebrow && (
               <div className="text-xs font-semibold uppercase tracking-wide text-sh-forest">{storyIntro.eyebrow}</div>
+            )}
+            {storyIntro.imageUrl && (
+              <img
+                src={storyIntro.imageUrl}
+                alt={storyIntro.title}
+                className="mt-3 mb-4 block aspect-[4/3] w-full rounded-[var(--sh-radius)] bg-sh-forest-soft object-cover"
+              />
             )}
             <div className="mt-1 text-lg font-semibold text-sh-foreground font-story">{storyIntro.title}</div>
             <div className="mt-2 text-sm leading-relaxed text-sh-muted whitespace-pre-line">{storyIntro.text}</div>

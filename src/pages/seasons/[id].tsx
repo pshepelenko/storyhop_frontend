@@ -131,6 +131,7 @@ type SeasonData = {
     vocabularyFocus: string[];
     preferredTone: string;
     comments: string;
+    seasonCoverImageUrl?: string | null;
   };
   framework: {
     seasonPremise: string;
@@ -1335,7 +1336,7 @@ export default function SeasonPage() {
             `${season.hero.heroProfile.name} is ${season.hero.heroProfile.shortDescription}. ${season.hero.heroProfile.name} wants ${season.hero.heroProfile.motivation.toLowerCase()}, and is joined by ${season.hero.heroProfile.companion.name}, a ${season.hero.heroProfile.companion.type}.`,
             `But something is already changing: ${season.framework.centralProblem}`,
           ].join('\n\n'),
-          imageUrl: season.hero.heroReferenceImageUrl,
+          imageUrl: season.seasonSetup.seasonCoverImageUrl || season.hero.heroReferenceImageUrl,
         }
       : null;
 
