@@ -1,10 +1,20 @@
-import { getApiBaseUrl } from './api-base-url';
+import { getApiBaseUrl, getConfiguredApiBaseUrl } from './api-base-url';
 import { captureAnalyticsEvent, normalizeAnalyticsRoute } from './analytics';
 
 let guestSessionPromise: Promise<void> | null = null;
 const apiBase = getApiBaseUrl().replace(/\/$/, '');
+const configuredApiBase = getConfiguredApiBaseUrl().replace(/\/$/, '');
 const nativeFetch = typeof window === 'undefined' ? null : window.fetch.bind(window);
 const GUEST_SESSION_TIMEOUT_MS = 8_000;
+
+function isApiRequest(url: string): boolean {
+  return url.startsWith(apiBase) || url.startsWith(configuredApiBase);
+}
+
+function toSameOriginApiInput(input: RequestInfo | URL, url: string): RequestInfo | URL {
+  if (!url.startsWith(configuredApiBase) || apiBase === configuredApiBase) return input;
+  return `${apiBase}${url.slice(configuredApiBase.length)}`;
+}
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
@@ -60,8 +70,10 @@ export async function apiFetchAsGuest(path: string, init: RequestInit = {}): Pro
 if (typeof window !== 'undefined' && nativeFetch) {
   window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-    if (!url.startsWith(apiBase) || url.includes('/auth/')) return nativeFetch(input, init);
-    return ensureGuestSession().then(() => nativeFetch(input, {
+    if (!isApiRequest(url)) return nativeFetch(input, init);
+    const sameOriginInput = toSameOriginApiInput(input, url);
+    if (url.includes('/auth/')) return nativeFetch(sameOriginInput, init);
+    return ensureGuestSession().then(() => nativeFetch(sameOriginInput, {
       ...init,
       credentials: 'include',
       cache: init?.cache ?? 'no-store',

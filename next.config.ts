@@ -40,6 +40,15 @@ const nextConfig: NextConfig = {
     imageSizes: [128, 256, 384],
     remotePatterns: getStorageProxyRemotePatterns(),
   },
+  async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    try {
+      const apiOrigin = new URL(apiUrl).origin;
+      return [{ source: '/api/:path*', destination: `${apiOrigin}/:path*` }];
+    } catch {
+      return [];
+    }
+  },
 };
 
 export default nextConfig;
