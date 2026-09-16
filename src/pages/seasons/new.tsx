@@ -321,6 +321,10 @@ export default function NewSeasonPage() {
 
   const generateHeroSeed = useCallback(async () => {
     if (!worldId) return;
+    if (!isEnglishHeroName(heroName)) {
+      setError('Укажите имя героя английскими буквами, прежде чем создавать профиль.');
+      return;
+    }
     if (descriptionSource === 'edited_by_user' && heroDescription.trim()) {
       const confirmed = window.confirm('Это заменит текущее описание героя. Продолжить?');
       if (!confirmed) return;
@@ -429,6 +433,11 @@ export default function NewSeasonPage() {
 
   const createSeason = async () => {
     if (!worldId) return;
+    if (!isEnglishHeroName(heroName)) {
+      setError('Укажите имя героя английскими буквами, прежде чем создавать сезон.');
+      goToStep(2, { reviewReturn: 3 });
+      return;
+    }
     setLoading(true);
     setError('');
     localStorage.setItem('storyLanguage', 'english');
@@ -800,19 +809,28 @@ function HeroDirectionStep({
           <p className="text-xs text-sh-muted mt-1">По умолчанию - возраст ребенка ({childProfile.age} лет).</p>
         </div>
         <label className="block text-sm font-semibold">
-          Имя героя
+          Имя героя <span className="text-red-600" aria-hidden="true">*</span>
           <input
-            className="mt-2 w-full rounded-[var(--sh-radius)] border border-sh-border px-3 py-2 text-sm outline-none focus:border-sh-forest"
+            className={`mt-2 w-full rounded-[var(--sh-radius)] border px-3 py-2 text-sm outline-none focus:border-sh-forest ${
+              isEnglishHeroName(heroName) ? 'border-sh-border' : 'border-red-400'
+            }`}
             value={heroName}
             onChange={(event) => setHeroName(sanitizeHeroNameInput(event.target.value))}
+            required
+            maxLength={40}
+            autoComplete="off"
+            aria-invalid={!isEnglishHeroName(heroName)}
+            aria-describedby="hero-name-help hero-name-error"
           />
         </label>
-        <p className="text-xs text-sh-muted -mt-2">
-          Имя героя должно быть только на английском: например, Lina, Max, Ruby или Leo.
+        <p id="hero-name-help" className="text-xs text-sh-muted -mt-2">
+          Обязательное поле. Имя героя должно быть только на английском: например, Lina, Max, Ruby или Leo.
         </p>
-        {!isEnglishHeroName(heroName) && heroName.trim() ? (
-          <p className="text-xs text-red-600 -mt-1">
-            Используйте только английские буквы, пробел, дефис или апостроф.
+        {!isEnglishHeroName(heroName) ? (
+          <p id="hero-name-error" className="text-xs text-red-600 -mt-1" role="alert">
+            {heroName.trim()
+              ? 'Используйте только английские буквы, пробел, дефис или апостроф.'
+              : 'Введите имя героя, чтобы продолжить.'}
           </p>
         ) : null}
         <ChipSection
@@ -851,7 +869,7 @@ function HeroDirectionStep({
         <div>
           <Button
             onClick={generateHeroSeed}
-            disabled={heroSeedLoading || Boolean(heroName.trim() && !isEnglishHeroName(heroName))}
+            disabled={heroSeedLoading || !isEnglishHeroName(heroName)}
           >
             {heroSeedLoading
               ? 'Генерируем профиль...'

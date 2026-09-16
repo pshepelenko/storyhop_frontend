@@ -22,10 +22,7 @@ type SeasonData = {
   seasonSetup?: {
     seasonCoverImageUrl?: string | null;
     seasonCoverGenerationStatus?: string | null;
-    heroReferenceImageGenerationStatus?: string | null;
-    heroReferenceImageGenerationError?: string | null;
   };
-  hero?: { heroReferenceImageUrl?: string | null; generationStatus?: string } | null;
   currentEpisode?: { title?: string; audioChunks?: { status: string }[] } | null;
   generationJobs?: GenerationJob[];
 };
@@ -34,9 +31,19 @@ type StepState = 'pending' | 'active' | 'done' | 'failed';
 
 const STEPS = [
   {
-    id: 'story_arc',
+    id: 'framework',
     label: 'Построение сюжета и арки',
     message: 'Мы создаем сюжетную арку сезона, ключевые события и развилки.',
+  },
+  {
+    id: 'season_bible',
+    label: 'Создание библии сезона',
+    message: 'Мы фиксируем героев, мир и правила, которые история будет помнить.',
+  },
+  {
+    id: 'episode_outline',
+    label: 'План первых пяти эпизодов',
+    message: 'Мы намечаем первые пять эпизодов, их открытия и развилки.',
   },
   {
     id: 'first_episode',
@@ -44,18 +51,8 @@ const STEPS = [
     message: 'Мы пишем первый эпизод, выборы, слова и фразы для практики.',
   },
   {
-    id: 'audio',
-    label: 'Создание аудио',
-    message: 'Мы готовим английскую озвучку для первого эпизода.',
-  },
-  {
-    id: 'illustrations',
-    label: 'Создание иллюстраций',
-    message: 'Мы готовим визуальный образ героя и обложку сезона.',
-  },
-  {
-    id: 'final_checks',
-    label: 'Финальные настройки',
+    id: 'media',
+    label: 'Создание аудио и иллюстраций',
     message: 'Мы проверяем, что история готова к запуску.',
   },
 ] as const;
@@ -107,17 +104,15 @@ export default function SeasonCreatingPage() {
 
   const childName = season?.childProfile?.childName || 'ребенка';
   const steps = useMemo(() => mapSteps(season), [season]);
-  const doneCount = steps.filter((step) => step.status === 'done').length;
   const failed = steps.some((step) => step.status === 'failed');
-  const heroPreviewUrl = season?.hero?.heroReferenceImageUrl || null;
   const coverPreviewUrl = season?.seasonSetup?.seasonCoverImageUrl || null;
   const audioReady = isAudioReady(season?.currentEpisode?.audioChunks || []);
-  const visualFailure = season?.seasonSetup?.heroReferenceImageGenerationStatus === 'failed';
-  const creationComplete = season?.status === 'episode_ready' && audioReady && Boolean(heroPreviewUrl) && Boolean(coverPreviewUrl);
-  const progress = creationComplete ? 100 : Math.max(12, Math.round((doneCount / steps.length) * 100));
+  const coverFailure = season?.seasonSetup?.seasonCoverGenerationStatus === 'failed';
+  const creationComplete = Boolean(season?.currentEpisode) && audioReady && Boolean(coverPreviewUrl);
+  const progress = creationComplete ? 100 : getCreationProgress(season, steps);
   const activeStep = steps.find((step) => step.status === 'active') || steps.find((step) => step.status === 'pending') || steps[steps.length - 1];
-  const preview = heroPreviewUrl || coverPreviewUrl || visualFailure
-    ? <VisualPreview heroUrl={heroPreviewUrl} coverUrl={coverPreviewUrl} failed={visualFailure} />
+  const preview = coverPreviewUrl || coverFailure
+    ? <VisualPreview coverUrl={coverPreviewUrl} failed={coverFailure} />
     : null;
   const retryBootstrap = async () => {
     setError('');
@@ -133,19 +128,17 @@ export default function SeasonCreatingPage() {
     return (
       <GenerationShell>
         <GenerationPanel
-          title={visualFailure && season?.currentEpisode ? 'Иллюстрации пока недоступны' : 'Что-то пошло не так'}
-          subtitle={visualFailure && season?.currentEpisode
-            ? 'Первый эпизод сохранен. Визуальный образ героя и обложка не появились из-за сбоя сервиса иллюстраций.'
+          title={coverFailure && season?.currentEpisode ? 'Не удалось создать обложку' : 'Что-то пошло не так'}
+          subtitle={coverFailure && season?.currentEpisode
+            ? 'Первый эпизод сохранен, но обложка сезона не появилась из-за сбоя сервиса иллюстраций.'
             : 'Сезон не удалось создать. Попробуйте еще раз или вернитесь домой.'}
           progress={progress}
           steps={steps}
-          activeMessage={error || (visualFailure
-            ? 'История готова к чтению. Мы не повторяем запрос автоматически, чтобы не запускать новые платные попытки.'
+          activeMessage={error || (coverFailure
+            ? 'Повторите создание обложки. Сюжет и первый эпизод останутся без изменений.'
             : 'Один из обязательных шагов завершился ошибкой.')}
           variant="error"
-          primary={visualFailure && season?.currentEpisode
-            ? <Button href={`/seasons/${seasonId}`}>Открыть первый эпизод</Button>
-            : <Button onClick={() => void retryBootstrap()}>Попробовать еще раз</Button>}
+          primary={<Button onClick={() => void retryBootstrap()}>Попробовать еще раз</Button>}
           secondary={<Button href="/" variant="secondary">На главную</Button>}
           preview={preview}
         />
@@ -161,11 +154,11 @@ export default function SeasonCreatingPage() {
           subtitle={`Первый эпизод уже ждет вас: ${season.currentEpisode.title || 'The adventure begins'}.`}
           progress={100}
           steps={steps.map((step) => ({ ...step, status: 'done' as StepState }))}
-          activeMessage="Первый эпизод, озвучка, обложка сезона и визуальный образ героя готовы."
+          activeMessage="Первый эпизод, озвучка и обложка сезона готовы."
           variant="success"
           primary={<Button href={`/seasons/${seasonId}`}>Перейти к истории</Button>}
           secondary={<Button href="/library" variant="secondary">Открыть в библиотеке</Button>}
-          preview={<VisualPreview heroUrl={heroPreviewUrl} coverUrl={coverPreviewUrl} />}
+          preview={<VisualPreview coverUrl={coverPreviewUrl} />}
         />
       </GenerationShell>
     );
@@ -175,7 +168,7 @@ export default function SeasonCreatingPage() {
     <GenerationShell>
       <GenerationPanel
         title={`Создаем сезон для ${childName}...`}
-        subtitle="Обычно это занимает 2-3 минуты. Можно вернуться позже - мы продолжим создание."
+        subtitle="Обычно это занимает 3-5 минут. Можно вернуться позже - мы продолжим создание."
         progress={progress}
         steps={steps}
         activeMessage={activeStep.message}
@@ -192,39 +185,40 @@ function mapSteps(season: SeasonData | null) {
   const bootstrapJob = jobs.find((job) => job.jobType === 'season_bootstrap');
   const hasEpisode = Boolean(season?.currentEpisode);
   const audioReady = isAudioReady(season?.currentEpisode?.audioChunks || []);
-  const heroReady = Boolean(season?.hero?.heroReferenceImageUrl);
   const coverReady = Boolean(season?.seasonSetup?.seasonCoverImageUrl);
+  const bootstrapStage = String(bootstrapJob?.payload?.stage || '');
+  const bootstrapStageIndex: Record<string, number> = {
+    framework: 0,
+    season_bible: 1,
+    episode_outline: 2,
+    finalizing: 3,
+    hero: 3,
+    first_episode: 3,
+  };
+  const bootstrapIndex = bootstrapStageIndex[bootstrapStage];
+  const frameworkReady = season?.generationStatus === 'ready' || bootstrapIndex >= 1;
+  const bibleReady = season?.generationStatus === 'ready' || bootstrapIndex >= 2;
+  const outlineReady = season?.generationStatus === 'ready' || bootstrapIndex >= 3;
   const episodeReady = season?.status === 'episode_ready' || hasEpisode;
-  const frameworkReady = season?.generationStatus === 'ready';
-  const visualsReady = heroReady && coverReady;
-  const visualFailure = season?.seasonSetup?.heroReferenceImageGenerationStatus === 'failed';
+  const visualsReady = coverReady;
+  const visualFailure = season?.seasonSetup?.seasonCoverGenerationStatus === 'failed';
   const blockingAudioFailure = jobs.some((job) => job.jobType === 'tts_chunk' && job.status === 'failed') && !audioReady;
 
   const statuses: StepState[] = [
     frameworkReady ? 'done' : season ? 'active' : 'pending',
-    episodeReady ? 'done' : frameworkReady ? 'active' : 'pending',
-    audioReady ? 'done' : episodeReady ? 'active' : 'pending',
-    visualsReady ? 'done' : (heroReady || frameworkReady) ? 'active' : 'pending',
-    season?.status === 'episode_ready' && audioReady && visualsReady ? 'done' : (audioReady || visualsReady) ? 'active' : 'pending',
+    bibleReady ? 'done' : frameworkReady ? 'active' : 'pending',
+    outlineReady ? 'done' : bibleReady ? 'active' : 'pending',
+    episodeReady ? 'done' : outlineReady ? 'active' : 'pending',
+    audioReady && visualsReady ? 'done' : episodeReady ? 'active' : 'pending',
   ];
 
   if (blockingAudioFailure) {
-    statuses[2] = 'failed';
+    statuses[4] = 'failed';
   }
   if (visualFailure) {
-    statuses[3] = 'failed';
+    statuses[4] = 'failed';
   }
 
-  const bootstrapStageIndex: Record<string, number> = {
-    framework: 0,
-    season_bible: 0,
-    episode_outline: 0,
-    finalizing: 0,
-    hero: 1,
-    first_episode: 1,
-  };
-  const bootstrapStage = String(bootstrapJob?.payload?.stage || '');
-  const bootstrapIndex = bootstrapStageIndex[bootstrapStage];
   if (bootstrapJob?.status === 'failed' || bootstrapJob?.status === 'expired' || season?.generationStatus === 'failed') {
     statuses[bootstrapIndex ?? 0] = 'failed';
   } else if (bootstrapJob && bootstrapIndex !== undefined) {
@@ -236,6 +230,27 @@ function mapSteps(season: SeasonData | null) {
     ...step,
     status: statuses[index],
   }));
+}
+
+function getCreationProgress(
+  season: SeasonData | null,
+  steps: Array<{ id: string; status: StepState }>,
+) {
+  if (!season) return 0;
+
+  const bootstrapStage = String(
+    season.generationJobs?.find((job) => job.jobType === 'season_bootstrap')?.payload?.stage || '',
+  );
+  const frameworkReady = season.generationStatus === 'ready' || !['', 'framework'].includes(bootstrapStage);
+  const bibleReady = season.generationStatus === 'ready' || ['episode_outline', 'finalizing', 'hero', 'first_episode'].includes(bootstrapStage);
+  const outlineReady = season.generationStatus === 'ready' || ['finalizing', 'hero', 'first_episode'].includes(bootstrapStage);
+
+  if (!frameworkReady) return 0;
+  if (!bibleReady) return 22;
+  if (!outlineReady) return 38;
+  if (!season.currentEpisode) return 60;
+
+  return steps.find((step) => step.id === 'media')?.status === 'done' ? 100 : 82;
 }
 
 function GenerationShell({ children }: { children: ReactNode }) {
@@ -318,35 +333,14 @@ function GenerationPanel({
 }
 
 function VisualPreview({
-  heroUrl,
   coverUrl,
   failed = false,
 }: {
-  heroUrl?: string | null;
   coverUrl?: string | null;
   failed?: boolean;
 }) {
   return (
-    <div className="grid gap-3 text-left sm:grid-cols-2">
-      <div className="rounded-[var(--sh-radius)] border border-sh-border bg-white p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-sh-muted">Герой</p>
-        {heroUrl ? (
-          <div className="relative mt-2 aspect-[4/3] overflow-hidden rounded-[var(--sh-radius)] bg-sh-forest-soft">
-            <Image
-              src={heroUrl}
-              alt=""
-              fill
-              unoptimized
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 240px"
-            />
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-sh-muted">
-            {failed ? 'Генерация остановлена после ошибки сервиса иллюстраций.' : 'Визуальный образ героя еще готовится.'}
-          </p>
-        )}
-      </div>
+    <div className="text-left">
       <div className="rounded-[var(--sh-radius)] border border-sh-border bg-white p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-sh-muted">Обложка сезона</p>
         {coverUrl ? (
@@ -362,7 +356,7 @@ function VisualPreview({
           </div>
         ) : (
           <p className="mt-2 text-sm text-sh-muted">
-            {failed ? 'Обложка появится после успешного создания образа героя.' : 'Генерируем обложку, чтобы она появилась на главной и в библиотеке.'}
+            {failed ? 'Создание обложки остановилось после ошибки сервиса иллюстраций.' : 'Генерируем обложку, чтобы она появилась на главной и в библиотеке.'}
           </p>
         )}
       </div>
